@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width">
+            <title>Roadmaps Map</title>
+
+        <!--put your external stylesheet links here-->
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Noto+Serif:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="css/style.css">
+        <link rel="stylesheet" href="lib/leaflet/leaflet.css">
+        <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+        <!--[if IE<9]>
+            <link rel="stylesheet" href="css/style.ie.css">
+        <![endif]-->
+        <style>
+            .serif {
+                font-family: 'Noto Serif', serif;
+            }
+            .btn-fragility, .btn-debt_risk {
+                background-color: #cb181d;
+                border-color: #cb181d;
+            }
+        </style>
+        <script src="https://d3js.org/topojson.v1.min.js"></script>
+    </head>
+    <body>
+        <div class="container">
+            <div class="row">
+                <div class="col text-center title serif">
+                    <h1><b>Country Roadmaps</b></h1>
+                    <p class="author"><b>Alison Case | Spring 2025</b></p>
+                </div>
+            </div>
+        </div>
+        <!--text content block-->
+        <div class="container">
+            <div class="container content-container">
+                <div class="col text-left serif">
+                    <p>Text</p>
+                </div>
+            </div>
+        </div>
+        <div id="mydiv"></div>
+        <div class="container">
+            <div class="map-container">
+                <div id="map" style="width: 100%; height: 600px;"></div>
+            </div>
+        </div>
+        <div id="panel"></div>
+        <div class="container text-center mt-3" id="indicator-buttons">
+            <!-- Buttons will be dynamically generated here -->
+        </div>
+        <script type="text/javascript" src="lib/leaflet/leaflet-src.js"></script>
+        <script type="text/javascript" src="lib/leaflet/leaflet-providers.js"></script>
+        <script src="https://d3js.org/d3.v6.min.js"></script>
+        <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+        <!--put your external script links here-->
+        <!--<script type="text/javascript" src="js/main.js"></script>-->
+        <!--<script type="text/javascript" src="js/quickstartTutorial.js"></script>-->
+        <script type="text/javascript" src="js/main.js"></script>
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+        <!--credits-->
+        <footer class="footer mt-auto py-3 bg-light">
+            <div class="container">
+                <div class="credits text-center">
+                        <p><b>Credits:</b></p>
+                        <p>Map created with 
+                            <a href="https://leafletjs.com/Leaflet">Leaflet</a></p>
+                        <p>Data from the 
+                            <a href="https://roadmaps.usaid.gov">U.S. Agency for International Development</a></p>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>
