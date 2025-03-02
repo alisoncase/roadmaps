@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width">
-            <title>Roadmaps Map</title>
+            <title>Country Roadmaps</title>
 
         <!--put your external stylesheet links here-->
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Noto+Serif:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
@@ -18,12 +18,9 @@
             .serif {
                 font-family: 'Noto Serif', serif;
             }
-            .btn-fragility, .btn-debt_risk {
-                background-color: #cb181d;
-                border-color: #cb181d;
-            }
         </style>
         <script src="https://d3js.org/topojson.v1.min.js"></script>
+        <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
     </head>
     <body>
         <div class="container">
@@ -38,7 +35,13 @@
         <div class="container">
             <div class="container content-container">
                 <div class="col text-left serif">
-                    <p>Text</p>
+                    <p>-- DRAFT -- This interactive web map visualizes the USAID Country Roadmap dataset for FY25. 
+                        The dataset comprises 18 third-party metrics divided into two dimensions that assess a country’s 
+                        commitment and capacity to make progress toward sustainable development. It also includes two additional 
+                        metrics outside of these dimensions that provide further context on a country’s progress toward 
+                        sustainable development. Previously, this dataset was presented as static webpages and PDFs with dot 
+                        plot and scatterplot graphs. This project aims to enhance the user experience by incorporating interactive 
+                        geospatial visualization for more targeted comparative analysis. --DRAFT--</p>
                 </div>
             </div>
         </div>
@@ -67,9 +70,10 @@
         <footer class="footer mt-auto py-3 bg-light">
             <div class="container">
                 <div class="credits text-center">
+                        <p>Disclaimer: This project was created in my personal capacity as a student at the University of Wisconsin-Madison and does not represent the views of my employer.</p>
                         <p><b>Credits:</b></p>
                         <p>Map created with 
-                            <a href="https://leafletjs.com/Leaflet">Leaflet</a></p>
+                            <a href="https://leafletjs.com/Leaflet">Leaflet</a> and <a href="https://d3js.org/">D3</a></p>
                         <p>Data from the 
                             <a href="https://roadmaps.usaid.gov">U.S. Agency for International Development</a></p>
                 </div>
