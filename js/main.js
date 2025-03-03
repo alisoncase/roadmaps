@@ -127,8 +127,7 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
         function onEachFeature(feature, layer) {
             layer.on({
                 mouseover: highlightFeature,
-                mouseout: resetHighlight,
-                click: showPopup
+                mouseout: resetHighlight
             });
         }
 
@@ -142,6 +141,12 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                 fillOpacity: 0.9
             });
 
+            var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
+            var value = countryData ? countryData[currentIndicator] : 'N/A';
+            var popupContent = `<b>${layer.feature.properties.WP_Name}</b><br>${currentIndicator.charAt(0).toUpperCase() + currentIndicator.slice(1)}: ${value}`;
+            layer.bindPopup(popupContent).openPopup();
+            openPopup = layer.getPopup(); // Store the currently open popup
+
             if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
                 layer.bringToFront();
             }
@@ -150,16 +155,10 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
         // Reset highlight on mouseout
         function resetHighlight(e) {
             geojsonLayer.resetStyle(e.target);
-        }
-
-        // Show popup on click
-        function showPopup(e) {
-            var layer = e.target;
-            var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
-            var value = countryData ? countryData[currentIndicator] : 'N/A';
-            var popupContent = `<b>${layer.feature.properties.WP_Name}</b><br>${currentIndicator.charAt(0).toUpperCase() + currentIndicator.slice(1)}: ${value}`;
-            layer.bindPopup(popupContent).openPopup();
-            openPopup = layer.getPopup(); // Store the currently open popup
+            if (openPopup) {
+                openPopup._source.closePopup();
+                openPopup = null;
+            }
         }
 
         // Add the GeoJSON layer to the map
@@ -175,6 +174,9 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
             var div = L.DomUtil.create('div', 'info legend'),
                 grades = colorScale.range().map(d => colorScale.invertExtent(d)[0]).reverse(),
                 labels = [];
+
+            // Add legend title
+            labels.push('<strong>' + currentIndicator.replace(/_/g, ' ').charAt(0).toUpperCase() + currentIndicator.replace(/_/g, ' ').slice(1) + '</strong>');
 
             // Create a legend label with a different color for each quantile interval of the indicator
             for (var i = 0; i < grades.length; i++) {
@@ -231,6 +233,9 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                 var div = L.DomUtil.create('div', 'info legend'),
                     grades = colorScale.range().map(d => colorScale.invertExtent(d)[0]).reverse(),
                     labels = [];
+
+                // Add legend title
+                labels.push('<strong>' + currentIndicator.replace(/_/g, ' ').charAt(0).toUpperCase() + currentIndicator.replace(/_/g, ' ').slice(1) + '</strong>');
 
                 // Update colored square labels based on the selected indicator
                 for (var i = 0; i < grades.length; i++) {
@@ -313,13 +318,46 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
 
             bivariateLayer = L.geoJson(geojson, {
                 style: bivariateStyle,
-                onEachFeature: onEachFeature
+                onEachFeature: function(feature, layer) {
+                    layer.on({
+                        mouseover: function(e) {
+                            var layer = e.target;
+                            layer.setStyle({
+                                weight: 3,
+                                color: '#666',
+                                fillOpacity: 0.9
+                            });
+
+                            var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
+                            var capacity = countryData ? countryData['capacity'] : 'N/A';
+                            var commitment = countryData ? countryData['commitment'] : 'N/A';
+                            var popupContent = `<b>${layer.feature.properties.WP_Name}</b><br>Capacity: ${capacity}<br>Commitment: ${commitment}`;
+                            layer.bindPopup(popupContent).openPopup();
+                            openPopup = layer.getPopup(); // Store the currently open popup
+
+                            if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                                layer.bringToFront();
+                            }
+                        },
+                        mouseout: function(e) {
+                            var layer = e.target;
+                            geojsonLayer.resetStyle(layer);
+                            if (openPopup) {
+                                openPopup._source.closePopup();
+                                openPopup = null;
+                            }
+                        }
+                    });
+                }
             }).addTo(map);
 
             // Add dynamic legend for bivariate map
             legend.onAdd = function (map) {
                 var div = L.DomUtil.create('div', 'info legend'),
                     labels = [];
+
+                // Add legend title
+                labels.push('<strong>Capacity and Commitment</strong>');
 
                 // Update colored square labels based on the bivariate indicator
                 var colors = bivariateColorScale.range().reverse();
@@ -420,7 +458,16 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                         weight: 1,
                         opacity: 1,
                         fillOpacity: 0.8
-                    }).bindPopup(`<b>${feature.properties.WP_Name}</b><br>${indicator.charAt(0).toUpperCase() + indicator.slice(1)}: ${label}`);
+                    });
+
+                    marker.on('mouseover', function() {
+                        var popupContent = `<b>${feature.properties.WP_Name}</b><br>${indicator.charAt(0).toUpperCase() + indicator.slice(1)}: ${label}`;
+                        marker.bindPopup(popupContent).openPopup();
+                    });
+
+                    marker.on('mouseout', function() {
+                        marker.closePopup();
+                    });
 
                     proportionalSymbolsLayer.addLayer(marker);
                 }
@@ -435,21 +482,24 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                 var div = L.DomUtil.create('div', 'info legend'),
                     labels = [];
 
+                // Add legend title
+                labels.push('<strong>' + currentIndicator.replace(/_/g, ' ').charAt(0).toUpperCase() + currentIndicator.replace(/_/g, ' ').slice(1) + '</strong>');
+
                 // Update colored square labels based on the selected indicator
                 if (indicator === 'fragility') {
-                    labels = [
+                    labels.push(
                         '<i style="background:#cb181d"></i> Alert',
                         '<i style="background:#fb6a4a"></i> Warning',
                         '<i style="background:#fcae91"></i> Stable',
                         '<i style="background:#fee5d9"></i> Sustainable'
-                    ];
+                    );
                 } else if (indicator === 'debt_risk') {
-                    labels = [
+                    labels.push(
                         '<i style="background:#cb181d"></i> In debt distress',
                         '<i style="background:#fb6a4a"></i> High',
                         '<i style="background:#fcae91"></i> Moderate',
                         '<i style="background:#fee5d9"></i> Low'
-                    ];
+                    );
                 }
 
                 div.innerHTML = labels.join('<br>');
