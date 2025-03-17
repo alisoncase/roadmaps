@@ -12,6 +12,7 @@
     line-height: 18px; 
     max-height: 200px; 
     overflow-y: auto; 
+    width: 150px; 
 }
 
 .info.legend i {
@@ -21,6 +22,7 @@
     margin-right: 8px;
     opacity: 0.7;
 }
+
 .credits {
     position: relative;
     bottom: 0;
@@ -33,4 +35,29 @@
     font-size: x-small;
     padding: 10px;
     line-height: .25;
+}
+
+/* Add styles for the popup */
+.leaflet-popup-content-wrapper {
+    background: white;
+    padding: 10px;
+    font: 12px Arial, Helvetica, sans-serif;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+    line-height: 18px;
+}
+
+.leaflet-popup-content {
+    margin: 0;
+}
+
+/* Add styles for the button popups */
+.metric-popup {
+    background: white;
+    padding: 10px;
+    font: 12px Arial, Helvetica, sans-serif;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+    line-height: 18px;
+    z-index: 1000;
 }
