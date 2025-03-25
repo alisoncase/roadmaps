@@ -184,6 +184,19 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                     fillOpacity: value !== null ? 0.7 : 0
                 };
             }
+            // Create a function to style each feature
+            //function style(feature) {
+            //    var countryData = data.find(d => d.country === feature.properties.WP_Name);
+            //    var value = countryData && countryData[currentIndicator] !== null && countryData[currentIndicator] !== "null" && countryData[currentIndicator] !== "" ? countryData[currentIndicator] : null;
+                
+            //    return {
+            //        fillColor: value !== null ? colorScale(value) : 'rgba(0,0,0,0)', // Fully transparent color
+            //        weight: 1,
+            //        opacity: 1,
+            //        color: 'white',
+            //        fillOpacity: value !== null ? 0.7 : 0
+            //    };
+           // }
 
             // Create a function to handle mouseover events
             function onEachFeature(feature, layer) {
@@ -204,7 +217,7 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                 });
 
                 var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
-                var value = countryData ? countryData[currentIndicator] : 'Data unavailable';
+                var value = countryData && countryData[currentIndicator] !== null && countryData[currentIndicator] !== "null" && countryData[currentIndicator] !== "" ? countryData[currentIndicator] : 'Data unavailable';
                 var popupContent = `<b>${layer.feature.properties.WP_Name}</b><br>${currentIndicator.charAt(0).toUpperCase() + currentIndicator.slice(1)}: ${value}`;
                 layer.bindPopup(popupContent).openPopup();
                 openPopup = layer.getPopup(); // Store the currently open popup
@@ -250,7 +263,7 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                 // Add legend title
                 labels.push('<strong>' + currentIndicator.replace(/_/g, ' ').charAt(0).toUpperCase() + currentIndicator.replace(/_/g, ' ').slice(1) + '</strong>');
 
-                // Add "Worst Outcome" label
+                // Add "Best Outcome" label
                 labels.push('<i style="background:' + colorScale(grades[0]) + '"></i> Best Outcome');
 
                 // Add color squares for intermediate values without labels
@@ -259,7 +272,7 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                     labels.push('<i style="background:' + colorScale(from) + '"></i>');
                 }
 
-                // Add "Best Outcome" label
+                // Add "Worst Outcome" label
                 labels.push('<i style="background:' + colorScale(grades[grades.length - 1]) + '"></i> Worst Outcome');
 
                 // Add a label for "N/A" with no fill
@@ -293,10 +306,17 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                 });
 
                 // Update the popup content if a popup is open
+                //if (openPopup) {
+                //    var layer = openPopup._source;
+                //    var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
+                //    var value = countryData ? countryData[currentIndicator] : 'Data unavailable';
+                //    var popupContent = `<b>${layer.feature.properties.WP_Name}</b><br>${currentIndicator.charAt(0).toUpperCase() + currentIndicator.slice(1)}: ${value}`;
+                //    openPopup.setContent(popupContent).update();
+                //}
                 if (openPopup) {
                     var layer = openPopup._source;
                     var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
-                    var value = countryData ? countryData[currentIndicator] : 'Data unavailable';
+                    var value = countryData && countryData[currentIndicator] !== null && countryData[currentIndicator] !== "null" && countryData[currentIndicator] !== "" ? countryData[currentIndicator] : 'Data unavailable';
                     var popupContent = `<b>${layer.feature.properties.WP_Name}</b><br>${currentIndicator.charAt(0).toUpperCase() + currentIndicator.slice(1)}: ${value}`;
                     openPopup.setContent(popupContent).update();
                 }
@@ -310,7 +330,7 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                     // Add legend title
                     labels.push('<strong>' + currentIndicator.replace(/_/g, ' ').charAt(0).toUpperCase() + currentIndicator.replace(/_/g, ' ').slice(1) + '</strong>');
 
-                    // Add "Worst Outcome" label
+                    // Add "Best Outcome" label
                     labels.push('<i style="background:' + colorScale(grades[0]) + '"></i> Best Outcome');
 
                     // Add color squares for intermediate values without labels
@@ -319,7 +339,7 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                         labels.push('<i style="background:' + colorScale(from) + '"></i>');
                     }
 
-                    // Add "Best Outcome" label
+                    // Add "Worst Outcome" label
                     labels.push('<i style="background:' + colorScale(grades[grades.length - 1]) + '"></i> Worst Outcome');
 
                     // Add a label for "N/A" with no fill
@@ -376,6 +396,19 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                     var countryData = data.find(d => d.country === feature.properties.WP_Name);
                     var capacity = countryData ? countryData['Capacity'] : null;
                     var commitment = countryData ? countryData['Commitment'] : null;
+                    
+                    // Treat both "null" (string), null (value), and blank values as null
+                    //if (capacity === null || capacity === "null" || capacity === "" || commitment === null || commitment === "null" || commitment === "") {
+                    //    console.log(`No data for ${feature.properties.WP_Name}`);
+                    //    return {
+                    //        fillColor: 'rgba(0,0,0,0)', // Fully transparent color
+                    //        weight: 1,
+                    //        opacity: 1,
+                    //        color: 'white',
+                    //        fillOpacity: 0
+                    //    };
+                    //}
+
                     var capacityQuintile = capacity !== null ? capacityQuintiles(capacity) : null;
                     var commitmentQuintile = commitment !== null ? commitmentQuintiles(commitment) : null;
                     var mappedCapacityQuintile = capacityQuintile !== null ? mapToThree(capacityQuintile) : null;
@@ -651,8 +684,11 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                 if (countryData) {
                     var metricsList = '<ul>';
                     Object.keys(countryData).forEach(key => {
+                        //if (key !== 'country') {
+                        //    metricsList += `<li><b>${key}:</b> ${countryData[key] !== null ? countryData[key] : 'Data unavailable'}</li>`;
+                        //}
                         if (key !== 'country') {
-                            metricsList += `<li><b>${key}:</b> ${countryData[key] !== null ? countryData[key] : 'Data unavailable'}</li>`;
+                            metricsList += `<li><b>${key}:</b> ${countryData[key] !== null && countryData[key] !== "null" ? countryData[key] : 'Data unavailable'}</li>`;
                         }
                     });
                     metricsList += '</ul>';
