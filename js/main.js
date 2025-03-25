@@ -29,6 +29,7 @@ var colorScale = d3.scaleQuantize().range(d3.schemeBlues[5]);
 var currentIndicator = 'Capacity'; // Default metric on map load
 var proportionalLegend; // Legend for proportional symbols
 var openPopup; // Variable to store the currently open popup
+var selectedCountries = new Set(); // Track selected countries
 
 // Load the CSV data
 d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
@@ -203,7 +204,7 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                 });
 
                 var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
-                var value = countryData ? countryData[currentIndicator] : 'N/A';
+                var value = countryData ? countryData[currentIndicator] : 'Data unavailable';
                 var popupContent = `<b>${layer.feature.properties.WP_Name}</b><br>${currentIndicator.charAt(0).toUpperCase() + currentIndicator.slice(1)}: ${value}`;
                 layer.bindPopup(popupContent).openPopup();
                 openPopup = layer.getPopup(); // Store the currently open popup
@@ -225,7 +226,17 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
             // Add the GeoJSON layer to the map
             geojsonLayer = L.geoJson(geojson, {
                 style: style,
-                onEachFeature: onEachFeature
+                onEachFeature: function(feature, layer) {
+                    layer.on({
+                        mouseover: highlightFeature,
+                        mouseout: resetHighlight,
+                        click: function(e) {
+                            var countryName = feature.properties.WP_Name;
+                            var countryData = data.find(d => d.country === countryName);
+                            updateInfoWindow(countryName, countryData, data);
+                        }
+                    });
+                }
             }).addTo(map);
 
             // Add a legend to the map
@@ -252,7 +263,7 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                 labels.push('<i style="background:' + colorScale(grades[grades.length - 1]) + '"></i> Worst Outcome');
 
                 // Add a label for "N/A" with no fill
-                labels.push('<i style="background:none; border:1px solid #ccc;"></i> N/A');
+                labels.push('<i style="background:none; border:1px solid #ccc;"></i> Data unavailable');
 
                 div.innerHTML = labels.join('<br>');
                 return div;
@@ -285,7 +296,7 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                 if (openPopup) {
                     var layer = openPopup._source;
                     var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
-                    var value = countryData ? countryData[currentIndicator] : 'N/A';
+                    var value = countryData ? countryData[currentIndicator] : 'Data unavailable';
                     var popupContent = `<b>${layer.feature.properties.WP_Name}</b><br>${currentIndicator.charAt(0).toUpperCase() + currentIndicator.slice(1)}: ${value}`;
                     openPopup.setContent(popupContent).update();
                 }
@@ -312,7 +323,7 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                     labels.push('<i style="background:' + colorScale(grades[grades.length - 1]) + '"></i> Worst Outcome');
 
                     // Add a label for "N/A" with no fill
-                    labels.push('<i style="background:none; border:1px solid #ccc;"></i> N/A');
+                    labels.push('<i style="background:none; border:1px solid #ccc;"></i> Data unavailable');
 
                     div.innerHTML = labels.join('<br>');
                     return div;
@@ -392,8 +403,8 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                                 });
 
                                 var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
-                                var capacity = countryData ? countryData['Capacity'] : 'N/A';
-                                var commitment = countryData ? countryData['Commitment'] : 'N/A';
+                                var capacity = countryData ? countryData['Capacity'] : 'Data unavailable';
+                                var commitment = countryData ? countryData['Commitment'] : 'Data unavailable';
                                 var popupContent = `<b>${layer.feature.properties.WP_Name}</b><br>Capacity: ${capacity}<br>Commitment: ${commitment}`;
                                 layer.bindPopup(popupContent).openPopup();
                                 openPopup = layer.getPopup(); 
@@ -570,7 +581,7 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
                     }
 
                     // Add a label for "N/A" with no fill
-                    labels.push('<i style="background:none; border:1px solid #ccc;"></i> N/A');
+                    labels.push('<i style="background:none; border:1px solid #ccc;"></i> Data unavailable');
 
                     div.innerHTML = labels.join('<br>');
                     return div;
@@ -578,6 +589,323 @@ d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
 
                 proportionalLegend.addTo(map);
             };
+
+            // Function to create the information window
+            function createInfoWindow() {
+                var infoWindow = document.createElement('div');
+                infoWindow.id = 'info-window';
+                infoWindow.style.position = 'fixed';
+                infoWindow.style.bottom = '0';
+                infoWindow.style.left = '10%'; // Center the window horizontally
+                infoWindow.style.width = '80%'; // Reduce width to 80%
+                infoWindow.style.height = '30%';
+                infoWindow.style.backgroundColor = 'white';
+                infoWindow.style.borderTop = '1px solid #ccc';
+                infoWindow.style.display = 'none';
+                infoWindow.style.zIndex = '1000';
+                infoWindow.style.overflow = 'hidden';
+                infoWindow.style.boxShadow = '0 -2px 10px rgba(0, 0, 0, 0.2)';
+                document.body.appendChild(infoWindow);
+
+                // Add close button
+                var closeButton = document.createElement('button');
+                closeButton.innerText = 'X';
+                closeButton.style.position = 'absolute';
+                closeButton.style.top = '10px';
+                closeButton.style.right = '10px';
+                closeButton.style.background = 'transparent';
+                closeButton.style.border = 'none';
+                closeButton.style.fontSize = '16px';
+                closeButton.style.cursor = 'pointer';
+                closeButton.onclick = function() {
+                    infoWindow.style.display = 'none';
+                };
+                infoWindow.appendChild(closeButton);
+
+                var leftContainer = document.createElement('div');
+                leftContainer.id = 'info-left';
+                leftContainer.style.width = '50%';
+                leftContainer.style.height = '100%';
+                leftContainer.style.float = 'left';
+                leftContainer.style.overflowY = 'auto';
+                leftContainer.style.padding = '10px';
+                infoWindow.appendChild(leftContainer);
+
+                var rightContainer = document.createElement('div');
+                rightContainer.id = 'info-right';
+                rightContainer.style.width = '50%';
+                rightContainer.style.height = '100%';
+                rightContainer.style.float = 'right';
+                rightContainer.style.padding = '10px';
+                infoWindow.appendChild(rightContainer);
+            }
+
+            // Function to update the information window
+            function updateInfoWindow(countryName, countryData, allData) {
+                var infoWindow = document.getElementById('info-window');
+                var leftContainer = document.getElementById('info-left');
+                var rightContainer = document.getElementById('info-right');
+
+                // Populate the left container with country details
+                leftContainer.innerHTML = `<h3>${countryName}</h3>`;
+                if (countryData) {
+                    var metricsList = '<ul>';
+                    Object.keys(countryData).forEach(key => {
+                        if (key !== 'country') {
+                            metricsList += `<li><b>${key}:</b> ${countryData[key] !== null ? countryData[key] : 'Data unavailable'}</li>`;
+                        }
+                    });
+                    metricsList += '</ul>';
+                    leftContainer.innerHTML += metricsList;
+                } else {
+                    leftContainer.innerHTML += '<p>No data available for this country.</p>';
+                }
+
+                // Create the scatterplot in the right container
+                rightContainer.innerHTML = '';
+                var svg = d3.select(rightContainer)
+                    .append('svg')
+                    .attr('width', '100%')
+                    .attr('height', '100%');
+
+                var containerWidth = rightContainer.clientWidth;
+                var containerHeight = rightContainer.clientHeight;
+
+                // Adjust margins to include 15% padding
+                var margin = {
+                    top: containerHeight * 0.15,
+                    right: containerWidth * 0.15,
+                    bottom: containerHeight * 0.15,
+                    left: containerWidth * 0.15
+                };
+
+                var width = containerWidth - margin.left - margin.right;
+                var height = containerHeight - margin.top - margin.bottom;
+
+                // Filter out countries with null or undefined values for Capacity or Commitment
+                var validData = allData.filter(d => d['Capacity'] && d['Commitment']);
+
+                // Check if the selected country has valid data
+                var hasValidData = countryData && countryData['Capacity'] && countryData['Commitment'];
+
+                if (hasValidData) {
+                    var x = d3.scaleLinear()
+                        .domain([0, d3.max(validData, d => +d['Capacity'])])
+                        .range([0, width]);
+
+                    var y = d3.scaleLinear()
+                        .domain([0, d3.max(validData, d => +d['Commitment'])])
+                        .range([height, 0]);
+
+                    var g = svg.append('g')
+                        .attr('transform', `translate(${margin.left},${margin.top})`);
+
+                    // Add axes
+                    g.append('g')
+                        .attr('transform', `translate(0,${height})`)
+                        .call(d3.axisBottom(x));
+
+                    g.append('g')
+                        .call(d3.axisLeft(y));
+
+                    // Add x-axis label
+                    g.append('text')
+                        .attr('x', width / 2)
+                        .attr('y', height + margin.bottom - 10)
+                        .attr('text-anchor', 'middle')
+                        .style('font-size', '12px')
+                        .text('Capacity');
+
+                    // Add y-axis label
+                    g.append('text')
+                        .attr('transform', 'rotate(-90)')
+                        .attr('x', -height / 2)
+                        .attr('y', -margin.left + 10)
+                        .attr('text-anchor', 'middle')
+                        .style('font-size', '12px')
+                        .text('Commitment');
+
+                    // Add points
+                    g.selectAll('.dot')
+                        .data(validData)
+                        .enter()
+                        .append('circle')
+                        .attr('class', 'dot')
+                        .attr('cx', d => x(+d['Capacity']))
+                        .attr('cy', d => y(+d['Commitment']))
+                        .attr('r', 5)
+                        .attr('fill', d => d.country === countryName ? 'rgb(15, 72, 114)' : 'light grey')
+                        .attr('opacity', d => d.country === countryName ? 1 : 0.25);
+                } else {
+                    // Display message for insufficient data
+                    svg.append('text')
+                        .attr('x', containerWidth / 2)
+                        .attr('y', containerHeight / 2)
+                        .attr('text-anchor', 'middle')
+                        .style('font-size', '16px')
+                        .style('fill', 'light grey')
+                        .text('Insufficient data for this country to calculate position on scatterplot');
+                }
+
+                // Show the information window
+                infoWindow.style.display = 'block';
+            }
+
+            // Function to highlight a country on the map
+            function highlightCountryOnMap(countryName) {
+                geojsonLayer.eachLayer(function(layer) {
+                    if (layer.feature.properties.WP_Name === countryName) {
+                        layer.setStyle({
+                            weight: 3,
+                            color: 'yellow',
+                            fillOpacity: 0.9
+                        });
+                    }
+                });
+            }
+
+            // Function to reset all highlights on the map
+            function resetAllHighlights() {
+                geojsonLayer.eachLayer(function(layer) {
+                    geojsonLayer.resetStyle(layer);
+                });
+                selectedCountries.forEach(country => highlightCountryOnMap(country)); // Keep selected countries highlighted
+            }
+
+            // Function to handle lasso selection
+            function handleLassoSelection(selectedDots) {
+                selectedCountries.clear();
+                selectedDots.forEach(dot => {
+                    selectedCountries.add(dot.country);
+                    highlightCountryOnMap(dot.country);
+                });
+            }
+
+            // Update the scatterplot to include hover and click functionality
+            function updateScatterplot(countryName, countryData, allData) {
+                var rightContainer = document.getElementById('info-right');
+                rightContainer.innerHTML = '';
+                var svg = d3.select(rightContainer)
+                    .append('svg')
+                    .attr('width', '100%')
+                    .attr('height', '100%');
+
+                var containerWidth = rightContainer.clientWidth;
+                var containerHeight = rightContainer.clientHeight;
+
+                var margin = {
+                    top: containerHeight * 0.15,
+                    right: containerWidth * 0.15,
+                    bottom: containerHeight * 0.15,
+                    left: containerWidth * 0.15
+                };
+
+                var width = containerWidth - margin.left - margin.right;
+                var height = containerHeight - margin.top - margin.bottom;
+
+                var validData = allData.filter(d => d['Capacity'] && d['Commitment']);
+
+                var x = d3.scaleLinear()
+                    .domain([0, d3.max(validData, d => +d['Capacity'])])
+                    .range([0, width]);
+
+                var y = d3.scaleLinear()
+                    .domain([0, d3.max(validData, d => +d['Commitment'])])
+                    .range([height, 0]);
+
+                var g = svg.append('g')
+                    .attr('transform', `translate(${margin.left},${margin.top})`);
+
+                g.append('g')
+                    .attr('transform', `translate(0,${height})`)
+                    .call(d3.axisBottom(x));
+
+                g.append('g')
+                    .call(d3.axisLeft(y));
+
+                g.append('text')
+                    .attr('x', width / 2)
+                    .attr('y', height + margin.bottom - 10)
+                    .attr('text-anchor', 'middle')
+                    .style('font-size', '12px')
+                    .text('Capacity');
+
+                g.append('text')
+                    .attr('transform', 'rotate(-90)')
+                    .attr('x', -height / 2)
+                    .attr('y', -margin.left + 10)
+                    .attr('text-anchor', 'middle')
+                    .style('font-size', '12px')
+                    .text('Commitment');
+
+                var dots = g.selectAll('.dot')
+                    .data(validData)
+                    .enter()
+                    .append('circle')
+                    .attr('class', 'dot')
+                    .attr('cx', d => x(+d['Capacity']))
+                    .attr('cy', d => y(+d['Commitment']))
+                    .attr('r', 5)
+                    .attr('fill', d => d.country === countryName ? 'blue' : 'lightgrey')
+                    .attr('opacity', d => d.country === countryName ? 0.7 : 0.25)
+                    .on('mouseover', function(event, d) {
+                        d3.select(this).attr('stroke', 'black').attr('stroke-width', 2);
+                        var tooltip = d3.select('body').append('div')
+                            .attr('class', 'scatter-tooltip')
+                            .style('position', 'absolute')
+                            .style('background', 'white')
+                            .style('border', '1px solid #ccc')
+                            .style('padding', '5px')
+                            .style('pointer-events', 'none')
+                            .style('font-size', '12px')
+                            .text(d.country);
+                        tooltip.style('left', (event.pageX + 10) + 'px').style('top', (event.pageY - 10) + 'px');
+                    })
+                    .on('mouseout', function() {
+                        d3.select(this).attr('stroke', null);
+                        d3.selectAll('.scatter-tooltip').remove();
+                    })
+                    .on('click', function(event, d) {
+                        selectedCountries.add(d.country);
+                        highlightCountryOnMap(d.country);
+                    });
+
+                // Add lasso functionality
+                var lasso = d3.lasso()
+                    .closePathSelect(true)
+                    .closePathDistance(100)
+                    .items(dots)
+                    .targetArea(svg)
+                    .on('start', function() {
+                        dots.attr('stroke', null);
+                    })
+                    .on('draw', function() {
+                        lasso.items().filter(d3.lasso.selected)
+                            .attr('stroke', 'black')
+                            .attr('stroke-width', 2);
+                    })
+                    .on('end', function() {
+                        var selectedDots = lasso.items().filter(d3.lasso.selected).data();
+                        handleLassoSelection(selectedDots);
+                    });
+
+                svg.call(lasso);
+            }
+
+            // Modify the map click handler to keep the selected country highlighted
+            geojsonLayer.eachLayer(function(layer) {
+                layer.on('click', function(e) {
+                    var countryName = layer.feature.properties.WP_Name;
+                    selectedCountries.add(countryName);
+                    highlightCountryOnMap(countryName);
+                    var countryData = data.find(d => d.country === countryName);
+                    updateInfoWindow(countryName, countryData, data);
+                });
+            });
+
+            // Create the information window on page load
+            createInfoWindow();
+
         }).catch(function(error) {
             console.error("Error loading TopoJSON data:", error);
         });
