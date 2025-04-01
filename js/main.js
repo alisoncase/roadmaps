@@ -36,6 +36,24 @@ document.addEventListener('DOMContentLoaded', function () {
     var openPopup; // Variable to store the currently open popup
     var selectedCountries = new Set(); // Track selected countries
 
+    // Function to reset all highlights on the map
+    function resetAllHighlights() {
+        geojsonLayer.eachLayer(function(layer) {
+            geojsonLayer.resetStyle(layer);
+        });
+        selectedCountries.clear(); // Clear the set of selected countries
+    }
+
+    // Function to dehighlight a specific country on the map
+    function dehighlightCountryOnMap(countryName) {
+        geojsonLayer.eachLayer(function(layer) {
+            if (layer.feature.properties.WP_Name === countryName) {
+                geojsonLayer.resetStyle(layer);
+            }
+        });
+        selectedCountries.delete(countryName); // Remove the country from the selected set
+    }
+
     // Load the CSV data
     d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
         console.log("CSV data loaded:", data);
@@ -340,14 +358,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Function to toggle the bivariate map
                 window.toggleBivariateMap = function() {
                     currentIndicator = 'capacity_commitment';
-
-                    if (bivariateLayer) {
-                        map.removeLayer(bivariateLayer);
-                        bivariateLayer = null;
-                        return;
-                    }
-
-                    var numQuintiles = 5;
                     var numColors = 3;
                     var capacityValues = [];
                     var commitmentValues = [];
@@ -630,6 +640,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     closeButton.style.cursor = 'pointer';
                     closeButton.onclick = function() {
                         infoWindow.style.display = 'none';
+                        resetAllHighlights(); // Reset all highlights when the panel is closed
                     };
                     infoWindow.appendChild(closeButton);
 
@@ -673,167 +684,54 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
 
                     // Create the scatterplot in the right container
-                    rightContainer.innerHTML = '';
-                    var svg = d3.select(rightContainer)
-                        .append('svg')
-                        .attr('width', '100%')
-                        .attr('height', '100%');
-
-                    var containerWidth = rightContainer.clientWidth;
-                    var containerHeight = rightContainer.clientHeight;
-
-                    // Adjust margins to include 15% padding
-                    var margin = {
-                        top: containerHeight * 0.15,
-                        right: containerWidth * 0.15,
-                        bottom: containerHeight * 0.15,
-                        left: containerWidth * 0.15
-                    };
-
-                    var width = containerWidth - margin.left - margin.right;
-                    var height = containerHeight - margin.top - margin.bottom;
-
-                    // Filter out countries with null or undefined values for Capacity or Commitment
-                    var validData = allData.filter(d => d['Capacity'] && d['Commitment']);
-
-                    // Check if the selected country has valid data
-                    var hasValidData = countryData && countryData['Capacity'] && countryData['Commitment'];
-
-                    if (hasValidData) {
-                        var x = d3.scaleLinear()
-                            .domain([0, d3.max(validData, d => +d['Capacity'])])
-                            .range([0, width]);
-
-                        var y = d3.scaleLinear()
-                            .domain([0, d3.max(validData, d => +d['Commitment'])])
-                            .range([height, 0]);
-
-                        var g = svg.append('g')
-                            .attr('transform', `translate(${margin.left},${margin.top})`);
-
-                        // Add axes
-                        g.append('g')
-                            .attr('transform', `translate(0,${height})`)
-                            .call(d3.axisBottom(x));
-
-                        g.append('g')
-                            .call(d3.axisLeft(y));
-
-                        // Add x-axis label
-                        g.append('text')
-                            .attr('x', width / 2)
-                            .attr('y', height + margin.bottom - 10)
-                            .attr('text-anchor', 'middle')
-                            .style('font-size', '12px')
-                            .text('Capacity');
-
-                        // Add y-axis label
-                        g.append('text')
-                            .attr('transform', 'rotate(-90)')
-                            .attr('x', -height / 2)
-                            .attr('y', -margin.left + 10)
-                            .attr('text-anchor', 'middle')
-                            .style('font-size', '12px')
-                            .text('Commitment');
-
-                        // Add points
-                        g.selectAll('.dot')
-                            .data(validData)
-                            .enter()
-                            .append('circle')
-                            .attr('class', 'dot')
-                            .attr('cx', d => x(+d['Capacity']))
-                            .attr('cy', d => y(+d['Commitment']))
-                            .attr('r', 5)
-                            .attr('fill', d => d.country === countryName ? 'rgb(15, 72, 114)' : 'light grey')
-                            .attr('opacity', d => d.country === countryName ? 1 : 0.25);
-                    } else {
-                        // Display message for insufficient data
-                        svg.append('text')
-                            .attr('x', containerWidth / 2)
-                            .attr('y', containerHeight / 2)
-                            .attr('text-anchor', 'middle')
-                            .style('font-size', '16px')
-                            .style('fill', 'light grey')
-                            .text('Insufficient data for this country to calculate position on scatterplot');
-                    }
+                    updateScatterplot(countryName, countryData, allData);
 
                     // Show the information window
                     infoWindow.style.display = 'block';
                 }
 
-                // Function to highlight a country on the map
-                function highlightCountryOnMap(countryName) {
-                    geojsonLayer.eachLayer(function(layer) {
-                        if (layer.feature.properties.WP_Name === countryName) {
-                            layer.setStyle({
-                                weight: 3,
-                                color: 'yellow',
-                                fillOpacity: 0.9
-                            });
-                        }
-                    });
-                }
-
-                // Function to reset all highlights on the map
-                function resetAllHighlights() {
-                    geojsonLayer.eachLayer(function(layer) {
-                        geojsonLayer.resetStyle(layer);
-                    });
-                    selectedCountries.forEach(country => highlightCountryOnMap(country)); // Keep selected countries highlighted
-                }
-
-                // Function to handle lasso selection
-                function handleLassoSelection(selectedDots) {
-                    selectedCountries.clear();
-                    selectedDots.forEach(dot => {
-                        selectedCountries.add(dot.country);
-                        highlightCountryOnMap(dot.country);
-                    });
-                }
-
-                // Update the scatterplot to include hover and click functionality
+                // Function to create or update the scatterplot in the information panel
                 function updateScatterplot(countryName, countryData, allData) {
                     var rightContainer = document.getElementById('info-right');
-                    rightContainer.innerHTML = '';
-                    var svg = d3.select(rightContainer)
-                        .append('svg')
-                        .attr('width', '100%')
-                        .attr('height', '100%');
+                    rightContainer.innerHTML = ''; // Clear the container
 
-                    var containerWidth = rightContainer.clientWidth;
-                    var containerHeight = rightContainer.clientHeight;
+                    var svgWidth = rightContainer.clientWidth;
+                    var svgHeight = rightContainer.clientHeight;
 
-                    var margin = {
-                        top: containerHeight * 0.15,
-                        right: containerWidth * 0.15,
-                        bottom: containerHeight * 0.15,
-                        left: containerWidth * 0.15
-                    };
+                    var margin = { top: 20, right: 20, bottom: 40, left: 50 };
+                    var width = svgWidth - margin.left - margin.right;
+                    var height = svgHeight - margin.top - margin.bottom;
 
-                    var width = containerWidth - margin.left - margin.right;
-                    var height = containerHeight - margin.top - margin.bottom;
-
+                    // Filter valid data for scatterplot
                     var validData = allData.filter(d => d['Capacity'] && d['Commitment']);
 
-                    var x = d3.scaleLinear()
+                    // Create scales
+                    var xScale = d3.scaleLinear()
                         .domain([0, d3.max(validData, d => +d['Capacity'])])
                         .range([0, width]);
 
-                    var y = d3.scaleLinear()
+                    var yScale = d3.scaleLinear()
                         .domain([0, d3.max(validData, d => +d['Commitment'])])
                         .range([height, 0]);
+
+                    // Create SVG
+                    var svg = d3.select(rightContainer)
+                        .append('svg')
+                        .attr('width', svgWidth)
+                        .attr('height', svgHeight);
 
                     var g = svg.append('g')
                         .attr('transform', `translate(${margin.left},${margin.top})`);
 
+                    // Add axes
                     g.append('g')
                         .attr('transform', `translate(0,${height})`)
-                        .call(d3.axisBottom(x));
+                        .call(d3.axisBottom(xScale));
 
                     g.append('g')
-                        .call(d3.axisLeft(y));
+                        .call(d3.axisLeft(yScale));
 
+                    // Add axis labels
                     g.append('text')
                         .attr('x', width / 2)
                         .attr('y', height + margin.bottom - 10)
@@ -849,16 +747,17 @@ document.addEventListener('DOMContentLoaded', function () {
                         .style('font-size', '12px')
                         .text('Commitment');
 
+                    // Add dots
                     var dots = g.selectAll('.dot')
                         .data(validData)
                         .enter()
                         .append('circle')
                         .attr('class', 'dot')
-                        .attr('cx', d => x(+d['Capacity']))
-                        .attr('cy', d => y(+d['Commitment']))
+                        .attr('cx', d => xScale(+d['Capacity']))
+                        .attr('cy', d => yScale(+d['Commitment']))
                         .attr('r', 5)
-                        .attr('fill', d => d.country === countryName ? 'blue' : 'lightgrey')
-                        .attr('opacity', d => d.country === countryName ? 0.7 : 0.25)
+                        .attr('fill', d => d.country === countryName ? 'rgb(0, 0, 139)' : (selectedCountries.has(d.country) ? 'yellow' : 'lightgrey'))
+                        .attr('opacity', d => d.country === countryName || selectedCountries.has(d.country) ? 1 : 0.7)
                         .on('mouseover', function(event, d) {
                             d3.select(this).attr('stroke', 'black').attr('stroke-width', 2);
                             var tooltip = d3.select('body').append('div')
@@ -877,30 +776,97 @@ document.addEventListener('DOMContentLoaded', function () {
                             d3.selectAll('.scatter-tooltip').remove();
                         })
                         .on('click', function(event, d) {
-                            selectedCountries.add(d.country);
-                            highlightCountryOnMap(d.country);
+                            if (selectedCountries.has(d.country)) {
+                                // Dehighlight the country if already selected
+                                dehighlightCountryOnMap(d.country);
+                                d3.select(this).attr('fill', 'lightgrey').attr('opacity', 0.7);
+                            } else {
+                                // Highlight the country if not already selected
+                                selectedCountries.add(d.country);
+                                highlightCountryOnMap(d.country);
+                                d3.select(this).attr('fill', 'yellow').attr('opacity', 1);
+                            }
                         });
 
-                    // Add lasso functionality
-                    var lasso = d3.lasso()
-                        .closePathSelect(true)
-                        .closePathDistance(100)
-                        .items(dots)
-                        .targetArea(svg)
-                        .on('start', function() {
-                            dots.attr('stroke', null);
-                        })
-                        .on('draw', function() {
-                            lasso.items().filter(d3.lasso.selected)
-                                .attr('stroke', 'black')
-                                .attr('stroke-width', 2);
-                        })
-                        .on('end', function() {
-                            var selectedDots = lasso.items().filter(d3.lasso.selected).data();
-                            handleLassoSelection(selectedDots);
-                        });
+                    // Add lasso selection functionality
+                    var isLassoing = false;
+                    var lassoStart = null;
+                    var lassoEnd = null;
 
-                    svg.call(lasso);
+                    svg.on('mousedown', function(event) {
+                        isLassoing = true;
+                        lassoStart = d3.pointer(event);
+                        lassoEnd = null;
+
+                        // Add a temporary lasso rectangle
+                        svg.selectAll('.lasso-rect').remove();
+                        svg.append('rect')
+                            .attr('class', 'lasso-rect')
+                            .attr('x', lassoStart[0])
+                            .attr('y', lassoStart[1])
+                            .attr('width', 0)
+                            .attr('height', 0)
+                            .attr('fill', 'rgba(0, 0, 255, 0.2)')
+                            .attr('stroke', 'blue')
+                            .attr('stroke-width', 1);
+                    });
+
+                    svg.on('mousemove', function(event) {
+                        if (isLassoing) {
+                            lassoEnd = d3.pointer(event);
+
+                            // Update the lasso rectangle
+                            svg.select('.lasso-rect')
+                                .attr('x', Math.min(lassoStart[0], lassoEnd[0]))
+                                .attr('y', Math.min(lassoStart[1], lassoEnd[1]))
+                                .attr('width', Math.abs(lassoEnd[0] - lassoStart[0]))
+                                .attr('height', Math.abs(lassoEnd[1] - lassoStart[1]));
+                        }
+                    });
+
+                    svg.on('mouseup', function() {
+                        if (isLassoing) {
+                            isLassoing = false;
+
+                            // Remove the lasso rectangle
+                            svg.selectAll('.lasso-rect').remove();
+
+                            // Highlight selected dots
+                            if (lassoStart && lassoEnd) {
+                                var xMin = Math.min(lassoStart[0], lassoEnd[0]) - margin.left;
+                                var xMax = Math.max(lassoStart[0], lassoEnd[0]) - margin.left;
+                                var yMin = Math.min(lassoStart[1], lassoEnd[1]) - margin.top;
+                                var yMax = Math.max(lassoStart[1], lassoEnd[1]) - margin.top;
+
+                                var selectedDots = dots.filter(function(d) {
+                                    var x = xScale(+d['Capacity']);
+                                    var y = yScale(+d['Commitment']);
+                                    return x >= xMin && x <= xMax && y >= yMin && y <= yMax;
+                                });
+
+                                selectedDots.each(function(d) {
+                                    if (!selectedCountries.has(d.country)) {
+                                        selectedCountries.add(d.country);
+                                        highlightCountryOnMap(d.country);
+                                        d3.select(this).attr('fill', 'yellow').attr('opacity', 1);
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+
+                // Function to highlight a country on the map
+                function highlightCountryOnMap(countryName) {
+                    geojsonLayer.eachLayer(function(layer) {
+                        if (layer.feature.properties.WP_Name === countryName) {
+                            layer.setStyle({
+                                weight: 3,
+                                color: 'yellow',
+                                fillOpacity: 0.9
+                            });
+                        }
+                    });
                 }
 
                 // Modify the map click handler to keep the selected country highlighted
