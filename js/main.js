@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var geojsonLayer;
     var proportionalSymbolsLayer;
     var bivariateLayer;
-    var colorScale = d3.scaleQuantize().range(d3.schemeBlues[5]);
+    var colorScale = d3.scaleSequential(d3.interpolateBlues); // Updated to use sequential unclassed continuous scale
     var currentIndicator = 'Capacity'; // Default metric on map load
     var proportionalLegend; // Legend for proportional symbols
     var openPopup; // Variable to store the currently open popup
@@ -88,7 +88,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         <b>Dimension:</b> ${metricInfo.Dimension}<br>
                         <b>Sub-dimension:</b> ${metricInfo['Sub-dimension']}<br>
                         <b>Definition:</b> ${metricInfo.Definition}<br>
-                        <b>Citation:</b> ${metricInfo.Citation}
                     `;
                     var popup = document.createElement('div');
                     popup.className = 'metric-popup';
@@ -266,29 +265,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 var legend = L.control({ position: 'bottomright' });
 
                 legend.onAdd = function (map) {
-                    var div = L.DomUtil.create('div', 'info legend'),
-                        grades = colorScale.range().map(d => colorScale.invertExtent(d)[0]).reverse(),
-                        labels = [];
+                    var div = L.DomUtil.create('div', 'info legend');
+                    var gradientId = 'legend-gradient';
 
-                    // Add legend title
-                    labels.push('<strong>' + currentIndicator.replace(/_/g, ' ').charAt(0).toUpperCase() + currentIndicator.replace(/_/g, ' ').slice(1) + '</strong>');
-
-                    // Add "Best Outcome" label
-                    labels.push('<i style="background:' + colorScale(grades[0]) + '"></i> Best Outcome');
-
-                    // Add color squares for intermediate values without labels
-                    for (var i = 1; i < grades.length - 1; i++) {
-                        var from = grades[i];
-                        labels.push('<i style="background:' + colorScale(from) + '"></i>');
-                    }
-
-                    // Add "Worst Outcome" label
-                    labels.push('<i style="background:' + colorScale(grades[grades.length - 1]) + '"></i> Worst Outcome');
-
-                    // Add a label for "N/A" with no fill
-                    labels.push('<i style="background:none; border:1px solid #ccc;"></i> Data unavailable');
-
-                    div.innerHTML = labels.join('<br>');
+                    // Create a gradient bar
+                    div.innerHTML = `
+                        <strong>${currentIndicator.replace(/_/g, ' ').charAt(0).toUpperCase() + currentIndicator.replace(/_/g, ' ').slice(1)}</strong>
+                        <div style="position: relative; height: 20px; width: 100%; background: linear-gradient(to right, ${d3.interpolateBlues(0)}, ${d3.interpolateBlues(1)});"></div>
+                        <div style="display: flex; justify-content: space-between; font-size: 10px;">
+                            <span>Worst outcome</span>
+                            <span>Best outcome</span>
+                        </div>
+                        <div style="display: flex; align-items: center; margin-top: 5px; font-size: 10px;">
+                            <i style="width: 18px; height: 18px; border: 1px solid #ccc; margin-right: 5px; background: none;"></i>
+                            <span>Data unavailable</span>
+                        </div>
+                    `;
                     return div;
                 };
 
@@ -302,9 +294,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (bivariateLayer) {
                         map.removeLayer(bivariateLayer);
                         bivariateLayer = null;
+                        legend.remove(); // Remove the bivariate legend
                     }
 
-                    colorScale.domain([0, d3.max(data, d => +d[indicator])]);
+                    // Update the domain of the color scale based on the data range
+                    var values = data.map(d => +d[indicator]).filter(v => !isNaN(v));
+                    colorScale.domain([d3.min(values), d3.max(values)]);
 
                     geojsonLayer.eachLayer(function(layer) {
                         var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
@@ -324,31 +319,24 @@ document.addEventListener('DOMContentLoaded', function () {
                         openPopup.setContent(popupContent).update();
                     }
 
-                    // Add dynamic legend
-                    legend.onAdd = function (map) {
-                        var div = L.DomUtil.create('div', 'info legend'),
-                            grades = colorScale.range().map(d => colorScale.invertExtent(d)[0]).reverse(),
-                            labels = [];
+                    // Update the legend to show a gradient bar with updated labels
+                    legend.onAdd = function(map) {
+                        var div = L.DomUtil.create('div', 'info legend');
+                        var gradientId = 'legend-gradient';
 
-                        // Add legend title
-                        labels.push('<strong>' + currentIndicator.replace(/_/g, ' ').charAt(0).toUpperCase() + currentIndicator.replace(/_/g, ' ').slice(1) + '</strong>');
-
-                        // Add "Best Outcome" label
-                        labels.push('<i style="background:' + colorScale(grades[0]) + '"></i> Best Outcome');
-
-                        // Add color squares for intermediate values without labels
-                        for (var i = 1; i < grades.length - 1; i++) {
-                            var from = grades[i];
-                            labels.push('<i style="background:' + colorScale(from) + '"></i>');
-                        }
-
-                        // Add "Worst Outcome" label
-                        labels.push('<i style="background:' + colorScale(grades[grades.length - 1]) + '"></i> Worst Outcome');
-
-                        // Add a label for "N/A" with no fill
-                        labels.push('<i style="background:none; border:1px solid #ccc;"></i> Data unavailable');
-
-                        div.innerHTML = labels.join('<br>');
+                        // Create a gradient bar with "Worst outcome" and "Best outcome" labels
+                        div.innerHTML = `
+                            <strong>${currentIndicator.replace(/_/g, ' ').charAt(0).toUpperCase() + currentIndicator.replace(/_/g, ' ').slice(1)}</strong>
+                            <div style="position: relative; height: 20px; width: 100%; background: linear-gradient(to right, ${d3.interpolateBlues(0)}, ${d3.interpolateBlues(1)});"></div>
+                            <div style="display: flex; justify-content: space-between; font-size: 10px;">
+                                <span>Worst outcome</span>
+                                <span>Best outcome</span>
+                            </div>
+                            <div style="display: flex; align-items: center; margin-top: 5px; font-size: 10px;">
+                                <i style="width: 18px; height: 18px; border: 1px solid #ccc; margin-right: 5px; background: none;"></i>
+                                <span>Data unavailable</span>
+                            </div>
+                        `;
                         return div;
                     };
 
@@ -357,7 +345,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Function to toggle the bivariate map
                 window.toggleBivariateMap = function() {
+                    // If the bivariate layer is already active, toggle it off
+                    if (bivariateLayer) {
+                        map.removeLayer(bivariateLayer);
+                        bivariateLayer = null;
+                        legend.remove(); // Remove the bivariate legend
+                        return;
+                    }
+
                     currentIndicator = 'capacity_commitment';
+
+                    // Define the number of quintiles
+                    var numQuintiles = 5;
+
                     var numColors = 3;
                     var capacityValues = [];
                     var commitmentValues = [];
