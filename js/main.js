@@ -54,6 +54,19 @@ document.addEventListener('DOMContentLoaded', function () {
         selectedCountries.delete(countryName); // Remove the country from the selected set
     }
 
+    // Function to highlight a country on the map
+    function highlightCountryOnMap(countryName) {
+        geojsonLayer.eachLayer(function(layer) {
+            if (layer.feature.properties.WP_Name === countryName) {
+                layer.setStyle({
+                    weight: 3,
+                    color: 'yellow',
+                    fillOpacity: 0.9
+                });
+            }
+        });
+    }
+
     // Load the CSV data
     d3.csv("data/roadmap_data_fy25.csv").then(function(data) {
         console.log("CSV data loaded:", data);
@@ -297,18 +310,40 @@ document.addEventListener('DOMContentLoaded', function () {
                         legend.remove(); // Remove the bivariate legend
                     }
 
+                    // Remove the univariate layer if it exists
+                    if (geojsonLayer) {
+                        map.removeLayer(geojsonLayer);
+                    }
+
                     // Update the domain of the color scale based on the data range
                     var values = data.map(d => +d[indicator]).filter(v => !isNaN(v));
                     colorScale.domain([d3.min(values), d3.max(values)]);
 
-                    geojsonLayer.eachLayer(function(layer) {
-                        var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
-                        var value = countryData ? countryData[indicator] : null;
-                        layer.setStyle({
-                            fillColor: value !== null ? colorScale(value) : 'none',
-                            fillOpacity: value !== null ? 0.7 : 0
-                        });
-                    });
+                    // Add the univariate layer
+                    geojsonLayer = L.geoJson(geojson, {
+                        style: function(feature) {
+                            var countryData = data.find(d => d.country === feature.properties.WP_Name);
+                            var value = countryData ? countryData[indicator] : null;
+                            return {
+                                fillColor: value !== null ? colorScale(value) : 'none',
+                                weight: 1,
+                                opacity: 1,
+                                color: 'white',
+                                fillOpacity: value !== null ? 0.7 : 0
+                            };
+                        },
+                        onEachFeature: function(feature, layer) {
+                            layer.on({
+                                mouseover: highlightFeature,
+                                mouseout: resetHighlight,
+                                click: function(e) {
+                                    var countryName = feature.properties.WP_Name;
+                                    var countryData = data.find(d => d.country === countryName);
+                                    updateInfoWindow(countryName, countryData, data);
+                                }
+                            });
+                        }
+                    }).addTo(map);
 
                     // Update the popup content if a popup is open
                     if (openPopup) {
@@ -353,6 +388,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         return;
                     }
 
+                    // Remove the univariate layer if it exists
+                    if (geojsonLayer) {
+                        map.removeLayer(geojsonLayer);
+                    }
+
                     currentIndicator = 'capacity_commitment';
 
                     // Define the number of quintiles
@@ -389,20 +429,31 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     function bivariateStyle(feature) {
                         var countryData = data.find(d => d.country === feature.properties.WP_Name);
-                        var capacity = countryData ? countryData['Capacity'] : null;
-                        var commitment = countryData ? countryData['Commitment'] : null;
+                        var capacity = countryData ? parseFloat(countryData['Capacity']) : null;
+                        var commitment = countryData ? parseFloat(countryData['Commitment']) : null;
 
-                        var capacityQuintile = capacity !== null ? capacityQuintiles(capacity) : null;
-                        var commitmentQuintile = commitment !== null ? commitmentQuintiles(commitment) : null;
-                        var mappedCapacityQuintile = capacityQuintile !== null ? mapToThree(capacityQuintile) : null;
-                        var mappedCommitmentQuintile = commitmentQuintile !== null ? mapToThree(commitmentQuintile) : null;
-                        var quintilePair = (mappedCapacityQuintile !== null && mappedCommitmentQuintile !== null) ? [mappedCapacityQuintile, mappedCommitmentQuintile] : null;
+                        // Check for null values and set no fill if either variable is null
+                        if (capacity === null || isNaN(capacity) || commitment === null || isNaN(commitment)) {
+                            return {
+                                fillColor: 'none',
+                                weight: 1,
+                                opacity: 1,
+                                color: 'white',
+                                fillOpacity: 0
+                            };
+                        }
+
+                        var capacityQuintile = capacityQuintiles(capacity);
+                        var commitmentQuintile = commitmentQuintiles(commitment);
+                        var mappedCapacityQuintile = mapToThree(capacityQuintile);
+                        var mappedCommitmentQuintile = mapToThree(commitmentQuintile);
+                        var quintilePair = [mappedCapacityQuintile, mappedCommitmentQuintile];
                         return {
-                            fillColor: quintilePair !== null ? bivariateColorScale(quintilePair.join(",")) : 'none',
+                            fillColor: bivariateColorScale(quintilePair.join(",")),
                             weight: 1,
                             opacity: 1,
                             color: 'white',
-                            fillOpacity: quintilePair !== null ? 0.7 : 0
+                            fillOpacity: 0.7
                         };
                     }
 
@@ -451,6 +502,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         // Add bivariate legend image
                         labels.push('<img src="img/bivariate_legend.png" alt="Bivariate Legend" style="width: 60%; display: block; margin: 0 auto;">');
+
+                        // Add "Insufficient data" square
+                        labels.push(`
+                            <div style="display: flex; align-items: center; margin-top: 5px; font-size: 10px;">
+                                <i style="width: 18px; height: 18px; border: 1px solid #ccc; margin-right: 5px; background: none;"></i>
+                                <span>Insufficient data</span>
+                            </div>
+                        `);
 
                         div.innerHTML = labels.join('<br>');
                         return div;
@@ -698,21 +757,30 @@ document.addEventListener('DOMContentLoaded', function () {
                     var svgWidth = rightContainer.clientWidth;
                     var svgHeight = rightContainer.clientHeight;
 
-                    var margin = { top: 20, right: 20, bottom: 40, left: 50 };
+                    var margin = { top: 20, right: 30, bottom: 70, left: 50 };
                     var width = svgWidth - margin.left - margin.right;
                     var height = svgHeight - margin.top - margin.bottom;
 
                     // Filter valid data for scatterplot
                     var validData = allData.filter(d => d['Capacity'] && d['Commitment']);
 
+                    // Check if the selected country has null values
+                    if (!countryData || !countryData['Capacity'] || !countryData['Commitment']) {
+                        rightContainer.innerHTML = `
+                            <div style="display: flex; justify-content: center; align-items: center; height: 100%; color: darkgrey; font-size: 18px;">
+                                Insufficient data to calculate position on scatterplot
+                            </div>`;
+                        return;
+                    }
+                   
                     // Create scales
                     var xScale = d3.scaleLinear()
-                        .domain([0, d3.max(validData, d => +d['Capacity'])])
-                        .range([0, width]);
+                    .domain([0, 1]) // Set the domain to [0, 1]
+                    .range([0, width]);
 
                     var yScale = d3.scaleLinear()
-                        .domain([0, d3.max(validData, d => +d['Commitment'])])
-                        .range([height, 0]);
+                    .domain([0, 1]) // Set the domain to [0, 1]
+                    .range([height, 0]);
 
                     // Create SVG
                     var svg = d3.select(rightContainer)
@@ -734,7 +802,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Add axis labels
                     g.append('text')
                         .attr('x', width / 2)
-                        .attr('y', height + margin.bottom - 10)
+                        .attr('y', height + margin.bottom - 30)
                         .attr('text-anchor', 'middle')
                         .style('font-size', '12px')
                         .text('Capacity');
@@ -852,19 +920,6 @@ document.addEventListener('DOMContentLoaded', function () {
                                     }
                                 });
                             }
-                        }
-                    });
-                }
-
-                // Function to highlight a country on the map
-                function highlightCountryOnMap(countryName) {
-                    geojsonLayer.eachLayer(function(layer) {
-                        if (layer.feature.properties.WP_Name === countryName) {
-                            layer.setStyle({
-                                weight: 3,
-                                color: 'yellow',
-                                fillOpacity: 0.9
-                            });
                         }
                     });
                 }
