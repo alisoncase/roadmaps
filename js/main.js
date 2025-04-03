@@ -59,10 +59,11 @@ document.addEventListener('DOMContentLoaded', function () {
         geojsonLayer.eachLayer(function(layer) {
             if (layer.feature.properties.WP_Name === countryName) {
                 layer.setStyle({
-                    weight: 3,
-                    color: 'yellow',
+                    weight: 2,
+                    color: 'rgb(128, 0, 0)',
                     fillOpacity: 0.9
                 });
+                layer.bringToFront(); // Bring the highlighted layer to the top
             }
         });
     }
@@ -344,6 +345,13 @@ document.addEventListener('DOMContentLoaded', function () {
                             });
                         }
                     }).addTo(map);
+
+                    // Bring the proportional symbols layer to the front if it exists
+                    if (proportionalSymbolsLayer) {
+                        proportionalSymbolsLayer.eachLayer(function(layer) {
+                            layer.bringToFront();
+                        });
+                    }
 
                     // Update the popup content if a popup is open
                     if (openPopup) {
@@ -633,6 +641,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     proportionalSymbolsLayer.addTo(map);
 
+                    // Bring the proportional symbols layer to the front
+                    proportionalSymbolsLayer.eachLayer(function(layer) {
+                        layer.bringToFront();
+                    });
+
                     // Update legend for proportional symbols
                     proportionalLegend = L.control({ position: 'bottomright' });
 
@@ -727,17 +740,107 @@ document.addEventListener('DOMContentLoaded', function () {
                     var leftContainer = document.getElementById('info-left');
                     var rightContainer = document.getElementById('info-right');
 
-                    // Populate the left container with country details
+                    // Populate the left container with dot plots for each metric
                     leftContainer.innerHTML = `<h3>${countryName}</h3>`;
                     if (countryData) {
-                        var metricsList = '<ul>';
                         Object.keys(countryData).forEach(key => {
                             if (key !== 'country') {
-                                metricsList += `<li><b>${key}:</b> ${countryData[key] !== null && countryData[key] !== "null" ? countryData[key] : 'Data unavailable'}</li>`;
+                                // Create a container for each metric's dot plot
+                                var metricContainer = document.createElement('div');
+                                metricContainer.style.marginBottom = '15px';
+
+                                // Add the metric name
+                                var metricName = document.createElement('div');
+                                metricName.textContent = key;
+                                metricName.style.fontWeight = 'bold';
+                                metricName.style.marginBottom = '5px';
+                                metricContainer.appendChild(metricName);
+
+                                // Create an SVG for the dot plot
+                                var svgWidth = leftContainer.clientWidth - 30; // Adjust for padding
+                                var svgHeight = 50;
+                                var margin = { top: 10, right: 30, bottom: 20, left: 10 };
+                                var width = svgWidth - margin.left - margin.right;
+                                var height = svgHeight - margin.top - margin.bottom;
+
+                                var svg = d3.create('svg')
+                                    .attr('width', svgWidth)
+                                    .attr('height', svgHeight);
+
+                                var g = svg.append('g')
+                                    .attr('transform', `translate(${margin.left},${margin.top})`);
+
+                                // Get all values for the metric
+                                var values = allData.map(d => +d[key]).filter(v => !isNaN(v));
+                                var selectedValue = +countryData[key];
+
+                                // Calculate the average value for the metric
+                                var averageValue = d3.mean(values);
+                                
+                                // Create scales
+                                var xScale = d3.scaleLinear()
+                                    .domain([d3.min(values), d3.max(values)])
+                                    .range([0, width]);
+
+                                // Add axis
+                                //g.append('g')
+                                //    .attr('transform', `translate(0,${height})`)
+                                //    .call(d3.axisBottom(xScale).ticks(5).tickSize(-height))
+                                //    .call(g => g.select('.domain').remove()) // Remove the axis line
+                                //    .call(g => g.selectAll('.tick line').attr('stroke', '#ccc'));
+
+                                // Add axis with a single tick at the average value
+                                g.append('g')
+                                .attr('transform', `translate(0,${height})`)
+                                .call(d3.axisBottom(xScale)
+                                    .tickValues([averageValue]) // Set the tick to the average value
+                                    //.tickFormat(d => d.toFixed(2)) // Format the tick label to 2 decimal places
+                                    .tickFormat(() => 'Average') // Replace the numeric label with "Average"
+                                    .tickSize(-height)) // Extend the tick line across the plot
+                                .call(g => g.select('.domain').remove()) // Remove the axis line
+                                .call(g => g.selectAll('.tick line').attr('stroke', '#ccc')); // Style the tick line
+
+                                // Add dots for all countries
+                                g.selectAll('.dot')
+                                    .data(values)
+                                    .enter()
+                                    .append('circle')
+                                    .attr('class', 'dot')
+                                    .attr('cx', d => xScale(d))
+                                    .attr('cy', height / 2)
+                                    .attr('r', 3)
+                                    .attr('fill', 'lightgrey')
+                                    .attr('opacity', 0.7);
+
+                                // Add a highlighted dot for the selected country
+                                g.append('circle')
+                                    .attr('class', 'selected-dot')
+                                    .attr('cx', xScale(selectedValue))
+                                    .attr('cy', height / 2)
+                                    .attr('r', 5)
+                                    .attr('fill', 'rgb(0, 0, 139)')
+                                    .attr('opacity', 1)
+                                    .on('mouseover', function(event) {
+                                        var tooltip = d3.select('body').append('div')
+                                            .attr('class', 'scatter-tooltip')
+                                            .style('position', 'absolute')
+                                            .style('background', 'white')
+                                            .style('border', '1px solid #ccc')
+                                            .style('padding', '5px')
+                                            .style('pointer-events', 'none')
+                                            .style('font-size', '12px')
+                                            .text(selectedValue);
+                                        tooltip.style('left', (event.pageX + 10) + 'px').style('top', (event.pageY - 10) + 'px');
+                                    })
+                                    .on('mouseout', function() {
+                                        d3.selectAll('.scatter-tooltip').remove();
+                                    });
+
+                                // Append the SVG to the metric container
+                                metricContainer.appendChild(svg.node());
+                                leftContainer.appendChild(metricContainer);
                             }
                         });
-                        metricsList += '</ul>';
-                        leftContainer.innerHTML += metricsList;
                     } else {
                         leftContainer.innerHTML += '<p>No data available for this country.</p>';
                     }
@@ -824,7 +927,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         .attr('cx', d => xScale(+d['Capacity']))
                         .attr('cy', d => yScale(+d['Commitment']))
                         .attr('r', 5)
-                        .attr('fill', d => d.country === countryName ? 'rgb(0, 0, 139)' : (selectedCountries.has(d.country) ? 'yellow' : 'lightgrey'))
+                        .attr('fill', d => d.country === countryName ? 'rgb(0, 0, 139)' : (selectedCountries.has(d.country) ? 'rgb(128, 0, 0)' : 'lightgrey'))
                         .attr('opacity', d => d.country === countryName || selectedCountries.has(d.country) ? 1 : 0.7)
                         .on('mouseover', function(event, d) {
                             d3.select(this).attr('stroke', 'black').attr('stroke-width', 2);
@@ -852,7 +955,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 // Highlight the country if not already selected
                                 selectedCountries.add(d.country);
                                 highlightCountryOnMap(d.country);
-                                d3.select(this).attr('fill', 'yellow').attr('opacity', 1);
+                                d3.select(this).attr('fill', 'rgb(128, 0, 0)').attr('opacity', 1);
                             }
                         });
 
@@ -916,7 +1019,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     if (!selectedCountries.has(d.country)) {
                                         selectedCountries.add(d.country);
                                         highlightCountryOnMap(d.country);
-                                        d3.select(this).attr('fill', 'yellow').attr('opacity', 1);
+                                        d3.select(this).attr('fill', 'rgb(128, 0, 0)').attr('opacity', 1);
                                     }
                                 });
                             }

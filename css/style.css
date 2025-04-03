@@ -100,7 +100,7 @@
 }
 
 #info-window button:hover {
-    color: #cb181d;
+    color: rgb(128, 0, 0);
 }
 
 .scatter-tooltip {
