@@ -141,8 +141,8 @@ document.addEventListener('DOMContentLoaded', function () {
             container0Indicators.forEach(indicator => {
                 var button = document.createElement('button');
                 button.className = 'btn btn-primary m-1';
-                button.style.backgroundColor = 'rgb(15, 72, 114)';
-                button.style.borderColor = 'rgb(15, 72, 114)';
+                button.style.backgroundColor = '#2a1a8a';
+                button.style.borderColor = '#2a1a8a';
                 button.innerText = 'Capacity and Commitment';
                 button.onclick = function() {
                     toggleBivariateMap();
@@ -477,11 +477,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         };
                     }
 
+                    // Add a click event to open the information window for the bivariate layer
                     bivariateLayer = L.geoJson(geojson, {
                         style: bivariateStyle,
                         onEachFeature: function(feature, layer) {
                             layer.on({
-                                // Mouseover event for bivariate layer
                                 mouseover: function(e) {
                                     var layer = e.target;
                                     layer.setStyle({
@@ -513,6 +513,11 @@ document.addEventListener('DOMContentLoaded', function () {
                                         openPopup._source.closePopup();
                                         openPopup = null;
                                     }
+                                },
+                                click: function(e) {
+                                    var countryName = feature.properties.WP_Name;
+                                    var countryData = data.find(d => d.country === countryName);
+                                    updateInfoWindow(countryName, countryData, data); // Open the information window
                                 }
                             });
                         }

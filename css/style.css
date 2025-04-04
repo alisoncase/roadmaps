@@ -112,3 +112,101 @@
     pointer-events: none;
     z-index: 1000;
 }
+
+/* Splash screen styles */
+#splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#splash-screen div {
+    text-align: left;
+    max-width: 600px;
+    font-family: 'Noto Sans', sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: rgb(32, 32, 32);
+}
+
+#splash-screen button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-family: 'Noto Sans', sans-serif;
+    background: rgb(15, 72, 114);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#splash-screen button:hover {
+    background: rgb(10, 50, 80);
+}
+
+/* Help button styles */
+#help-button {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 3000;
+    padding: 10px 15px;
+    font-size: 14px;
+    font-family: 'Noto Sans', sans-serif;
+    background: rgb(15, 72, 114);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#help-button:hover {
+    background: rgb(10, 50, 80);
+}
+
+/* Help panel styles */
+#help-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 50%;
+    height: 100%;
+    background: white;
+    z-index: 3000; /* Ensure it is above the Help button */
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+    display: none;
+    overflow-y: auto;
+}
+
+#help-panel div {
+    padding: 20px;
+    font-family: 'Noto Sans', sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: rgb(32, 32, 32);
+}
+
+#help-panel button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 3100; /* Ensure the close button is above the Help panel */
+}
+
+#help-panel button:hover {
+    color: rgb(128, 0, 0);
+}

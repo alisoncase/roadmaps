@@ -28,14 +28,29 @@
     <body>
         <div class="container">
             <div class="row">
-                <div class="col text-center title serif">
+                <div class="col text-center title sans-serif" style="color: rgb(32,32, 32)">
                     <h1><b>Country Roadmaps</b></h1>
                     <p class="author"><b>Alison Case | Spring 2025</b></p>
                 </div>
             </div>
         </div>
-        <!--text content block-->
-        <div class="container">
+        <!-- Splash Screen -->
+        <div id="splash-screen">
+            <div>
+                <h2>Welcome to the Country Roadmaps Interactive Map</h2>
+                <p>Each year since 2018, the U.S. Agency for International Development (USAID) releases its Country Roadmaps, an analytical tool for assessing global development progress. These roadmaps use 18 third-party metrics to evaluate all low- and middle-income countries. The metrics are organized into two dimensions:</p>
+                <li><b>Commitment:</b> Measures how a country’s laws, policies, actions, and informal governance mechanisms support sustainable development.</li>
+                <li><b>Capacity:</b> Assesses a country’s ability to plan, finance, and manage its own political, social, and economic development, including cross-sector collaboration.</li>
+                <p></p>
+                <p>Additionally, there are two extra metrics for informational purposes: fragility and risk of external debt distress. These do not affect the Commitment or Capacity scores.</p>
+                <p>This interactive web map visualizes the USAID Country Roadmap dataset for Fiscal Year 2025. Previously, this dataset was presented as static webpages and PDFs with dot plot and 
+                    scatterplot graphs at <a href="https://roadmaps.usaid.gov">https://roadmaps.usaid.gov.</a> This project aims to enhance the user experience by incorporating interactive geospatial visualization for more targeted 
+                    comparative analysis. Users can hover over and click on different countries and buttons to explore the dataset. For more information, click the “help” button at the top 
+                    right of the web page.</p>
+            </div>
+            <button id="close-splash">Close this window</button>
+        </div>
+        <!--<div class="container">
             <div class="container content-container">
                 <div class="col text-left serif">
                     <p>This interactive web map visualizes the USAID Country Roadmap dataset for FY25. 
@@ -47,7 +62,7 @@
                         experience by incorporating interactive geospatial visualization for more targeted comparative analysis.</p>
                 </div>
             </div>
-        </div>
+        </div>-->
         <div id="mydiv"></div>
         <div class="container">
             <div class="map-container">
@@ -58,10 +73,52 @@
         <div class="container text-center mt-3" id="indicator-buttons">
             <!-- Buttons will be dynamically generated here -->
         </div>
+        <!-- Help Button -->
+        <button id="help-button">Help</button>
+
+        <!-- Help Panel -->
+        <div id="help-panel">
+            <div>
+                <button id="close-help">X</button>
+                <h2>Help</h2>
+                <h3>Map</h3>
+                <p>This interactive map has three types of layers you can toggle using the buttons below the map:</p>
+                <ul>
+                    <li><b>Capacity and Commitment:</b> Displays combined overall Capacity and Commitment scores for each country using a color-coded legend. The legend shows nine colors representing different combinations of low and high capacity and commitment.</li>
+                    <li><b>Metrics Maps:</b> Shows individual scores for each metric under the Capacity and Commitment dimensions as color-coded maps. You can toggle these layers on and off.</li>
+                    <li><b>Proportional Symbols:</b> Adds symbols to represent the Fragility and Risk of External Debt Distress metrics for each country. These symbols can be viewed on top of the univariate maps, allowing you to see both the color-coded scores and the proportional symbols simultaneously.</li>
+                </ul>
+                <h3>Metrics</h3>
+                <p>Hover over the buttons to see definitions and data sources for each metric.</p>
+                <h3>Graphs</h3>
+                <p>Click on a country to open an info window:</p>
+                <ul>
+                    <li><b>Left Side:</b> Displays the country's name and scores on various metrics as dot plots. These plots compare the country's scores to other low- and middle-income countries (LMICs) and show the average score for all LMICs.</li>
+                    <li><b>Right Side:</b> Shows a scatterplot of overall capacity and commitment scores for all LMICs, highlighting the selected country. You can hover over dots to see country names, click to highlight a country on the map, or lasso select multiple dots to highlight them. Close the window by clicking the X in the upper right corner.</li>
+                </ul>
+            </div>
+        </div>
+
         <script type="text/javascript" src="js/main.js"></script>
         <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
         <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+        <script>
+            // Close the splash screen when the button is clicked
+            document.getElementById('close-splash').addEventListener('click', function() {
+                document.getElementById('splash-screen').style.display = 'none';
+            });
+
+            // Show the help panel when the Help button is clicked
+            document.getElementById('help-button').addEventListener('click', function() {
+                document.getElementById('help-panel').style.display = 'block';
+            });
+
+            // Close the help panel when the X button is clicked
+            document.getElementById('close-help').addEventListener('click', function() {
+                document.getElementById('help-panel').style.display = 'none';
+            });
+        </script>
         <!--credits-->
         <footer class="footer mt-auto py-3 bg-light">
             <div class="container">
