@@ -19,13 +19,14 @@ document.addEventListener('DOMContentLoaded', function () {
         ext: 'png',
         noWrap: true 
     }).addTo(map);
+    
 
     // Set the maximum bounds to the world bounds
     var bounds = [[-90, -180], [90, 180]];
     map.setMaxBounds(bounds);
 
     // Force the map to fit within the bounds on load
-    map.fitBounds(bounds);
+    //map.fitBounds(bounds);
 
     var geojsonLayer;
     var proportionalSymbolsLayer;
@@ -240,7 +241,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
 
                     var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
-                    var value = countryData && countryData[currentIndicator] !== null && countryData[currentIndicator] !== "null" && countryData[currentIndicator] !== "" ? countryData[currentIndicator] : 'Data unavailable';
+                    var value = countryData && countryData[currentIndicator] !== null && countryData[currentIndicator] !== "null" && countryData[currentIndicator] !== "" 
+                        ? (+countryData[currentIndicator]).toFixed(2) // Fix the value to two decimal places
+                        : 'Data unavailable';
                     var popupContent = `<b>${layer.feature.properties.WP_Name}</b><br>${currentIndicator.charAt(0).toUpperCase() + currentIndicator.slice(1)}: ${value}`;
                     layer.bindPopup(popupContent).openPopup();
                     openPopup = layer.getPopup(); // Store the currently open popup
@@ -357,7 +360,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (openPopup) {
                         var layer = openPopup._source;
                         var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
-                        var value = countryData && countryData[currentIndicator] !== null && countryData[currentIndicator] !== "null" && countryData[currentIndicator] !== "" ? countryData[currentIndicator] : 'Data unavailable';
+                        var value = countryData && countryData[currentIndicator] !== null && countryData[currentIndicator] !== "null" && countryData[currentIndicator] !== "" 
+                            ? (+countryData[currentIndicator]).toFixed(2) // Fix the value to two decimal places
+                            : 'Data unavailable';
                         var popupContent = `<b>${layer.feature.properties.WP_Name}</b><br>${currentIndicator.charAt(0).toUpperCase() + currentIndicator.slice(1)}: ${value}`;
                         openPopup.setContent(popupContent).update();
                     }
@@ -429,11 +434,18 @@ document.addEventListener('DOMContentLoaded', function () {
                             "1,0", "1,1", "1,2",
                             "2,0", "2,1", "2,2"
                         ])
+                        // Subdued pink blue color scheme
+                        //.range([
+                        //    "#e8e8e8", "#ace4e4", "#5ac8c8",
+                        //    "#dfb0d6", "#a5add3", "#5698b9",
+                        //    "#be64ac", "#8c62aa", "#3b4994"
+                        //Bright pink blue color scheme
                         .range([
-                            "#e8e8e8", "#ace4e4", "#5ac8c8",
-                            "#dfb0d6", "#a5add3", "#5698b9",
-                            "#be64ac", "#8c62aa", "#3b4994"
-                        ]);
+                            "#e8e6f2", "#b5d3e7", "#4fadd0", 
+                            "#e5b4d9", "#b8b3d8", "#3983bb", 
+                            "#de4fa6", "#b03598", "#2a1a8a"
+                            
+                    ]);
 
                     function bivariateStyle(feature) {
                         var countryData = data.find(d => d.country === feature.properties.WP_Name);
@@ -469,6 +481,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         style: bivariateStyle,
                         onEachFeature: function(feature, layer) {
                             layer.on({
+                                // Mouseover event for bivariate layer
                                 mouseover: function(e) {
                                     var layer = e.target;
                                     layer.setStyle({
@@ -478,8 +491,13 @@ document.addEventListener('DOMContentLoaded', function () {
                                     });
 
                                     var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
-                                    var capacity = countryData ? countryData['Capacity'] : 'Data unavailable';
-                                    var commitment = countryData ? countryData['Commitment'] : 'Data unavailable';
+                                    var capacity = countryData && countryData['Capacity'] !== null && countryData['Capacity'] !== "null" && countryData['Capacity'] !== ""
+                                        ? (+countryData['Capacity']).toFixed(2) // Fix Capacity to two decimal places
+                                        : 'Data unavailable';
+                                    var commitment = countryData && countryData['Commitment'] !== null && countryData['Commitment'] !== "null" && countryData['Commitment'] !== ""
+                                        ? (+countryData['Commitment']).toFixed(2) // Fix Commitment to two decimal places
+                                        : 'Data unavailable';
+
                                     var popupContent = `<b>${layer.feature.properties.WP_Name}</b><br>Capacity: ${capacity}<br>Commitment: ${commitment}`;
                                     layer.bindPopup(popupContent).openPopup();
                                     openPopup = layer.getPopup(); 
@@ -744,7 +762,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     leftContainer.innerHTML = `<h3>${countryName}</h3>`;
                     if (countryData) {
                         Object.keys(countryData).forEach(key => {
-                            if (key !== 'country') {
+                            // Skip the "Fragility" and "Risk of External Debt Distress" metrics
+                            if (key === 'Fragility' || key === 'Risk of External Debt Distress' || key === 'country') {
+                                return;
+                            }                   
+                                                           
+                                
                                 // Create a container for each metric's dot plot
                                 var metricContainer = document.createElement('div');
                                 metricContainer.style.marginBottom = '15px';
@@ -779,23 +802,16 @@ document.addEventListener('DOMContentLoaded', function () {
                                 
                                 // Create scales
                                 var xScale = d3.scaleLinear()
-                                    .domain([d3.min(values), d3.max(values)])
+                                    .domain([0, 1]) // Set the domain to [0, 1]
                                     .range([0, width]);
 
-                                // Add axis
-                                //g.append('g')
-                                //    .attr('transform', `translate(0,${height})`)
-                                //    .call(d3.axisBottom(xScale).ticks(5).tickSize(-height))
-                                //    .call(g => g.select('.domain').remove()) // Remove the axis line
-                                //    .call(g => g.selectAll('.tick line').attr('stroke', '#ccc'));
 
                                 // Add axis with a single tick at the average value
                                 g.append('g')
                                 .attr('transform', `translate(0,${height})`)
                                 .call(d3.axisBottom(xScale)
                                     .tickValues([averageValue]) // Set the tick to the average value
-                                    //.tickFormat(d => d.toFixed(2)) // Format the tick label to 2 decimal places
-                                    .tickFormat(() => 'Average') // Replace the numeric label with "Average"
+                                    .tickFormat(() => 'Average') // Set the tick label to "Average"
                                     .tickSize(-height)) // Extend the tick line across the plot
                                 .call(g => g.select('.domain').remove()) // Remove the axis line
                                 .call(g => g.selectAll('.tick line').attr('stroke', '#ccc')); // Style the tick line
@@ -829,7 +845,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                             .style('padding', '5px')
                                             .style('pointer-events', 'none')
                                             .style('font-size', '12px')
-                                            .text(selectedValue);
+                                            .text(selectedValue.toFixed(2)); // Fix the number to two decimal places
                                         tooltip.style('left', (event.pageX + 10) + 'px').style('top', (event.pageY - 10) + 'px');
                                     })
                                     .on('mouseout', function() {
@@ -839,7 +855,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 // Append the SVG to the metric container
                                 metricContainer.appendChild(svg.node());
                                 leftContainer.appendChild(metricContainer);
-                            }
+                            //}
                         });
                     } else {
                         leftContainer.innerHTML += '<p>No data available for this country.</p>';
