@@ -768,10 +768,32 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (countryData) {
                         Object.keys(countryData).forEach(key => {
                             // Skip the "Fragility" and "Risk of External Debt Distress" metrics
-                            if (key === 'Fragility' || key === 'Risk of External Debt Distress' || key === 'country') {
+                            if (key === 'Fragility' || key === 'Risk of External Debt Distress' || key === 'Commitment' || key === 'Capacity' ||key === 'country') {
                                 return;
                             }                   
                                                            
+                            // Check if the value is null or empty
+                            if (!countryData || countryData[key] === null || countryData[key] === "") {
+                                var metricContainer = document.createElement('div'); // Define metricContainer
+                                metricContainer.style.marginBottom = '15px';
+
+                                // Add the metric name
+                                var metricName = document.createElement('div');
+                                metricName.textContent = key;
+                                metricName.style.fontWeight = 'bold';
+                                metricName.style.marginBottom = '5px';
+                                metricContainer.appendChild(metricName);
+
+                                // Add the 'Data unavailable' message
+                                var unavailableMessage = document.createElement('div');
+                                unavailableMessage.textContent = 'Data unavailable';
+                                unavailableMessage.style.color = 'darkgrey';
+                                unavailableMessage.style.fontStyle = 'italic';
+                                metricContainer.appendChild(unavailableMessage);
+
+                                leftContainer.appendChild(metricContainer);
+                                return;
+                            }
                                 
                                 // Create a container for each metric's dot plot
                                 var metricContainer = document.createElement('div');
