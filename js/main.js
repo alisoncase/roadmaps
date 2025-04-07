@@ -303,6 +303,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 legend.addTo(map);
 
+                // Function to highlight the selected button
+                function highlightSelectedButton(indicator) {
+                    // Remove 'active' class from all buttons
+                    var buttons = document.querySelectorAll('#indicator-buttons button');
+                    buttons.forEach(button => button.classList.remove('active'));
+
+                    // Add 'active' class to the button corresponding to the selected indicator
+                    var selectedButton = Array.from(buttons).find(button => button.innerText === indicator.replace(/_/g, ' ').charAt(0).toUpperCase() + indicator.replace(/_/g, ' ').slice(1));
+                    if (selectedButton) {
+                        selectedButton.classList.add('active');
+                    }
+                }
+
                 // Function to update the map based on the selected indicator
                 window.updateMap = function(indicator) {
                     currentIndicator = indicator;
@@ -389,6 +402,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     };
 
                     legend.addTo(map);
+
+                    // Highlight the selected button
+                    highlightSelectedButton(indicator);
+
+                    // Ensure the information panel is hidden when toggling metrics
+                    var infoWindow = document.getElementById('info-window');
+                    if (infoWindow) {
+                        infoWindow.style.display = 'none';
+                    }
                 };
 
                 // Function to toggle the bivariate map
@@ -521,7 +543,15 @@ document.addEventListener('DOMContentLoaded', function () {
                                 }
                             });
                         }
-                    }).addTo(map);
+                    });
+
+                    // Add the bivariate layer below the proportional symbols layer
+                    bivariateLayer.addTo(map);
+                    if (proportionalSymbolsLayer) {
+                        proportionalSymbolsLayer.eachLayer(function(layer) {
+                            layer.bringToFront();
+                        });
+                    }
 
                     // Add static legend for bivariate map
                     legend.onAdd = function (map) {
@@ -547,6 +577,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     };
 
                     legend.addTo(map);
+
+                    // Highlight the bivariate button
+                    highlightSelectedButton('Capacity and Commitment');
                 };
 
                 // Function to toggle the proportional symbols layer
@@ -763,6 +796,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     var leftContainer = document.getElementById('info-left');
                     var rightContainer = document.getElementById('info-right');
 
+                    infoWindow.style.display = 'block'; // Ensure the info window is visible
+                    leftContainer.innerHTML = `<h3>${countryName}</h3>`; // Clear and add country name
+
+                    // Ensure the left container has a valid width
+                    var leftWidth = leftContainer.clientWidth;
+                    if (leftWidth <= 0) {
+                        console.error('Invalid left container width. Ensure the container has a valid width before rendering.');
+                        return;
+                    }
+
                     // Populate the left container with dot plots for each metric
                     leftContainer.innerHTML = `<h3>${countryName}</h3>`;
                     if (countryData) {
@@ -812,6 +855,11 @@ document.addEventListener('DOMContentLoaded', function () {
                                 var margin = { top: 10, right: 30, bottom: 20, left: 10 };
                                 var width = svgWidth - margin.left - margin.right;
                                 var height = svgHeight - margin.top - margin.bottom;
+
+                                if (svgWidth <= 0) {
+                                    console.error('Invalid SVG width. Ensure the container has a valid width before rendering the SVG.');
+                                    return;
+                                }
 
                                 var svg = d3.create('svg')
                                     .attr('width', svgWidth)
@@ -898,11 +946,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Function to create or update the scatterplot in the information panel
                 function updateScatterplot(countryName, countryData, allData) {
                     var rightContainer = document.getElementById('info-right');
+                    rightContainer.style.display = 'block'; // Ensure the container is visible
                     rightContainer.innerHTML = ''; // Clear the container
 
+                    // Dynamically recalculate the width of the container
                     var svgWidth = rightContainer.clientWidth;
-                    var svgHeight = rightContainer.clientHeight;
+                    if (svgWidth <= 0) {
+                        console.error('Invalid SVG width. Ensure the container has a valid width before rendering the SVG.');
+                        return; // Exit the function if the width is invalid
+                    }
 
+                    var svgHeight = rightContainer.clientHeight;
                     var margin = { top: 20, right: 30, bottom: 70, left: 50 };
                     var width = svgWidth - margin.left - margin.right;
                     var height = svgHeight - margin.top - margin.bottom;
@@ -1070,14 +1124,27 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                 }
 
-                // Modify the map click handler to keep the selected country highlighted
+                // Modify the map click handler to ensure the information panel updates correctly
                 geojsonLayer.eachLayer(function(layer) {
                     layer.on('click', function(e) {
                         var countryName = layer.feature.properties.WP_Name;
+                        var countryData = data.find(d => d.country === countryName);
+
+                        // Ensure the information panel is initialized before updating
+                        if (!document.getElementById('info-window')) {
+                            createInfoWindow();
+                        }
+
+                        // Ensure the information panel is visible before updating its content
+                        var infoWindow = document.getElementById('info-window');
+                        infoWindow.style.display = 'block';
+
+                        // Update the information panel with the selected country's data
+                        updateInfoWindow(countryName, countryData, data);
+
+                        // Highlight the selected country on the map
                         selectedCountries.add(countryName);
                         highlightCountryOnMap(countryName);
-                        var countryData = data.find(d => d.country === countryName);
-                        updateInfoWindow(countryName, countryData, data);
                     });
                 });
 
