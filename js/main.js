@@ -234,19 +234,38 @@ document.addEventListener('DOMContentLoaded', function () {
                 function highlightFeature(e) {
                     var layer = e.target;
 
+                    // Highlight the boundaries of the choropleth layer's polygon
                     layer.setStyle({
-                        weight: 3,
+                        weight: 2,
                         color: '#666',
-                        fillOpacity: 0.9
+                        fillOpacity: layer.options.fillOpacity
                     });
 
-                    var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
-                    var value = countryData && countryData[currentIndicator] !== null && countryData[currentIndicator] !== "null" && countryData[currentIndicator] !== "" 
-                        ? (+countryData[currentIndicator]).toFixed(2) // Fix the value to two decimal places
-                        : 'Data unavailable';
-                    var popupContent = `<b>${layer.feature.properties.WP_Name}</b><br>${currentIndicator.charAt(0).toUpperCase() + currentIndicator.slice(1)}: ${value}`;
-                    layer.bindPopup(popupContent).openPopup();
-                    openPopup = layer.getPopup(); // Store the currently open popup
+                    // Ensure the proportional symbols layer remains on top
+                    if (proportionalSymbolsLayer) {
+                        proportionalSymbolsLayer.eachLayer(function(symbolLayer) {
+                            symbolLayer.bringToFront();
+                        });
+                    }
+
+                    // Display the popup with data from the proportional symbol layer if active
+                    if (proportionalSymbolsLayer) {
+                        var proportionalData = data.find(d => d.country === layer.feature.properties.WP_Name);
+                        if (proportionalData) {
+                            var popupContent = `<b>${layer.feature.properties.WP_Name}</b><br>${currentIndicator}: ${proportionalData[currentIndicator] || 'Data unavailable'}`;
+                            layer.bindPopup(popupContent).openPopup();
+                            openPopup = layer.getPopup();
+                        }
+                    } else {
+                        // Display the popup with data from the choropleth layer
+                        var countryData = data.find(d => d.country === layer.feature.properties.WP_Name);
+                        var value = countryData && countryData[currentIndicator] !== null && countryData[currentIndicator] !== "null" && countryData[currentIndicator] !== "" 
+                            ? (+countryData[currentIndicator]).toFixed(2) // Fix the value to two decimal places
+                            : 'Data unavailable';
+                        var popupContent = `<b>${layer.feature.properties.WP_Name}</b><br>${currentIndicator.charAt(0).toUpperCase() + currentIndicator.slice(1)}: ${value}`;
+                        layer.bindPopup(popupContent).openPopup();
+                        openPopup = layer.getPopup();
+                    }
 
                     if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
                         layer.bringToFront();
@@ -255,7 +274,34 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Reset highlight on mouseout
                 function resetHighlight(e) {
-                    geojsonLayer.resetStyle(e.target);
+                    var layer = e.target;
+
+                    // Check if the country is the currently selected country
+                    var countryName = layer.feature.properties.WP_Name;
+                    if (selectedCountries.has(countryName)) {
+                        // Keep the selected country highlighted in grey
+                        layer.setStyle({
+                            weight: 2,
+                            color: 'rgb(128, 0, 0)',
+                            fillOpacity: 0.9
+                        });
+                        return;
+                    }
+
+                    // Remove the highlight by resetting the boundary style
+                    layer.setStyle({
+                        weight: 1,
+                        color: 'white',
+                        fillOpacity: layer.options.fillOpacity
+                    });
+
+                    // Ensure the proportional symbols layer remains on top
+                    if (proportionalSymbolsLayer) {
+                        proportionalSymbolsLayer.eachLayer(function(symbolLayer) {
+                            symbolLayer.bringToFront();
+                        });
+                    }
+
                     if (openPopup) {
                         openPopup._source.closePopup();
                         openPopup = null;
@@ -316,6 +362,31 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
 
+                function attachClickHandlerToLayer(layerGroup) {
+                    layerGroup.eachLayer(function(layer) {
+                        layer.on('click', function(e) {
+                            var countryName = layer.feature.properties.WP_Name;
+                            var countryData = data.find(d => d.country === countryName);
+                
+                            // Ensure the information panel is initialized before updating
+                            if (!document.getElementById('info-window')) {
+                                createInfoWindow();
+                            }
+                
+                            // Ensure the information panel is visible before updating its content
+                            var infoWindow = document.getElementById('info-window');
+                            infoWindow.style.display = 'block';
+                
+                            // Update the information panel with the selected country's data
+                            updateInfoWindow(countryName, countryData, data);
+                
+                            // Highlight the selected country on the map
+                            selectedCountries.add(countryName);
+                            highlightCountryOnMap(countryName);
+                        });
+                    });
+                }
+
                 // Function to update the map based on the selected indicator
                 window.updateMap = function(indicator) {
                     currentIndicator = indicator;
@@ -361,6 +432,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             });
                         }
                     }).addTo(map);
+
+                    // Attach click handler to the new layer
+                    attachClickHandlerToLayer(geojsonLayer);
 
                     // Bring the proportional symbols layer to the front if it exists
                     if (proportionalSymbolsLayer) {
@@ -456,11 +530,6 @@ document.addEventListener('DOMContentLoaded', function () {
                             "1,0", "1,1", "1,2",
                             "2,0", "2,1", "2,2"
                         ])
-                        // Subdued pink blue color scheme
-                        //.range([
-                        //    "#e8e8e8", "#ace4e4", "#5ac8c8",
-                        //    "#dfb0d6", "#a5add3", "#5698b9",
-                        //    "#be64ac", "#8c62aa", "#3b4994"
                         //Bright pink blue color scheme
                         .range([
                             "#e8e6f2", "#b5d3e7", "#4fadd0", 
@@ -507,7 +576,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 mouseover: function(e) {
                                     var layer = e.target;
                                     layer.setStyle({
-                                        weight: 3,
+                                        weight: 2,
                                         color: '#666',
                                         fillOpacity: layer.options.fillOpacity 
                                     });
@@ -529,31 +598,46 @@ document.addEventListener('DOMContentLoaded', function () {
                                     }
                                 },
                                 mouseout: function(e) {
-                                    var layer = e.target;
-                                    layer.setStyle(bivariateStyle(layer.feature)); 
-                                    if (openPopup) {
-                                        openPopup._source.closePopup();
-                                        openPopup = null;
-                                    }
+                                    resetHighlight(e); // Use the same resetHighlight function
                                 },
                                 click: function(e) {
                                     var countryName = feature.properties.WP_Name;
                                     var countryData = data.find(d => d.country === countryName);
-                                    updateInfoWindow(countryName, countryData, data); // Open the information window
+                    
+                                    // Ensure the information panel is initialized before updating
+                                    if (!document.getElementById('info-window')) {
+                                        createInfoWindow();
+                                    }
+                    
+                                    // Ensure the information panel is visible before updating its content
+                                    var infoWindow = document.getElementById('info-window');
+                                    infoWindow.style.display = 'block';
+                    
+                                    // Update the information panel with the selected country's data
+                                    updateInfoWindow(countryName, countryData, data);
+                    
+                                    // Highlight the selected country on the map
+                                    selectedCountries.add(countryName);
+                                    highlightCountryOnMap(countryName);
                                 }
                             });
                         }
-                    });
+                    }).addTo(map);
+
+                    // Attach click handler to the bivariate layer
+                    attachClickHandlerToLayer(bivariateLayer);
 
                     // Add the bivariate layer below the proportional symbols layer
                     bivariateLayer.addTo(map);
+
+                    // Ensure the proportional symbols layer remains on top if it is active
                     if (proportionalSymbolsLayer) {
                         proportionalSymbolsLayer.eachLayer(function(layer) {
                             layer.bringToFront();
                         });
                     }
 
-                    // Add static legend for bivariate map
+                    // Restore the original bivariate legend
                     legend.onAdd = function (map) {
                         var div = L.DomUtil.create('div', 'info legend'),
                             labels = [];
@@ -684,6 +768,27 @@ document.addEventListener('DOMContentLoaded', function () {
                                     marker.closePopup();
                                 });
 
+                                marker.on('click', function(e) {
+                                    var countryName = feature.properties.WP_Name;
+                                    var countryData = data.find(d => d.country === countryName);
+                        
+                                    // Ensure the information panel is initialized before updating
+                                    if (!document.getElementById('info-window')) {
+                                        createInfoWindow();
+                                    }
+                        
+                                    // Ensure the information panel is visible before updating its content
+                                    var infoWindow = document.getElementById('info-window');
+                                    infoWindow.style.display = 'block';
+                        
+                                    // Update the information panel with the selected country's data
+                                    updateInfoWindow(countryName, countryData, data);
+                        
+                                    // Highlight the selected country on the map
+                                    selectedCountries.add(countryName);
+                                    highlightCountryOnMap(countryName);
+                                });
+
                                 proportionalSymbolsLayer.addLayer(marker);
                             }
                         });
@@ -729,7 +834,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             );
                         }
 
-                        // Add a label for "N/A" with no fill
+                        // Add a label for "data unavailable" with no fill
                         labels.push('<i style="background:none; border:1px solid #ccc;"></i> Data unavailable');
 
                         div.innerHTML = labels.join('<br>');
@@ -737,6 +842,36 @@ document.addEventListener('DOMContentLoaded', function () {
                     };
 
                     proportionalLegend.addTo(map);
+
+                    if (proportionalSymbolsLayer) {
+                        proportionalSymbolsLayer.eachLayer(function(layer) {
+                            layer.on('click', function(e) {
+                                var countryName = layer.feature.properties.WP_Name;
+                                var countryData = data.find(d => d.country === countryName);
+                    
+                                // Ensure the information panel is initialized before updating
+                                if (!document.getElementById('info-window')) {
+                                    createInfoWindow();
+                                }
+                    
+                                // Ensure the information panel is visible before updating its content
+                                var infoWindow = document.getElementById('info-window');
+                                infoWindow.style.display = 'block';
+                    
+                                // Update the information panel with the selected country's data
+                                updateInfoWindow(countryName, countryData, data);
+                    
+                                // Highlight the selected country on the map
+                                selectedCountries.add(countryName);
+                                highlightCountryOnMap(countryName);
+
+                                // Ensure the proportional symbols layer remains on top
+                                proportionalSymbolsLayer.eachLayer(function(symbolLayer) {
+                                    symbolLayer.bringToFront();
+                                });
+                            });
+                        });
+                    }
                 };
 
                 // Function to create the information window
@@ -1052,6 +1187,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 // Highlight the country if not already selected
                                 selectedCountries.add(d.country);
                                 highlightCountryOnMap(d.country);
+                                highlightSelectedCountry(d.country); // Highlight on both layers
                                 d3.select(this).attr('fill', 'rgb(128, 0, 0)').attr('opacity', 1);
                             }
                         });
@@ -1116,10 +1252,26 @@ document.addEventListener('DOMContentLoaded', function () {
                                     if (!selectedCountries.has(d.country)) {
                                         selectedCountries.add(d.country);
                                         highlightCountryOnMap(d.country);
+                                        highlightSelectedCountry(d.country); // Highlight on both layers
                                         d3.select(this).attr('fill', 'rgb(128, 0, 0)').attr('opacity', 1);
                                     }
                                 });
                             }
+                        }
+                    });
+
+                    // Allow individual country selection in addition to lasso select
+                    dots.on('click', function(event, d) {
+                        if (selectedCountries.has(d.country)) {
+                            // Dehighlight the country if already selected
+                            dehighlightCountryOnMap(d.country);
+                            d3.select(this).attr('fill', 'lightgrey').attr('opacity', 0.7);
+                        } else {
+                            // Highlight the country if not already selected
+                            selectedCountries.add(d.country);
+                            highlightCountryOnMap(d.country);
+                            highlightSelectedCountry(d.country); // Highlight on both layers
+                            d3.select(this).attr('fill', 'rgb(128, 0, 0)').attr('opacity', 1);
                         }
                     });
                 }
@@ -1150,6 +1302,142 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Create the information window on page load
                 createInfoWindow();
+
+                // Ensure highlight functionality works for both bivariate and choropleth layers
+                function highlightSelectedCountry(countryName) {
+                    geojsonLayer.eachLayer(function(layer) {
+                        if (layer.feature.properties.WP_Name === countryName) {
+                            layer.setStyle({
+                                weight: 2,
+                                color: 'rgb(128, 0, 0)',
+                                fillOpacity: 0.9
+                            });
+                            layer.bringToFront();
+                        }
+                    });
+
+                    if (bivariateLayer) {
+                        bivariateLayer.eachLayer(function(layer) {
+                            if (layer.feature.properties.WP_Name === countryName) {
+                                layer.setStyle({
+                                    weight: 2,
+                                    color: 'rgb(128, 0, 0)',
+                                    fillOpacity: 0.9
+                                });
+                                layer.bringToFront();
+                            }
+                        });
+                    }
+                }
+
+                // Modify the map click handler to ensure the selected country remains highlighted
+                geojsonLayer.eachLayer(function(layer) {
+                    layer.on('click', function(e) {
+                        var countryName = layer.feature.properties.WP_Name;
+                        var countryData = data.find(d => d.country === countryName);
+
+                        // Ensure the information panel is initialized before updating
+                        if (!document.getElementById('info-window')) {
+                            createInfoWindow();
+                        }
+
+                        // Ensure the information panel is visible before updating its content
+                        var infoWindow = document.getElementById('info-window');
+                        infoWindow.style.display = 'block';
+
+                        // Update the information panel with the selected country's data
+                        updateInfoWindow(countryName, countryData, data);
+
+                        // Highlight the selected country on the map
+                        selectedCountries.add(countryName); // Add the country to the selected set
+                        highlightSelectedCountry(countryName);
+                    });
+                });
+
+                if (bivariateLayer) {
+                    bivariateLayer.eachLayer(function(layer) {
+                        layer.on('click', function(e) {
+                            var countryName = layer.feature.properties.WP_Name;
+                            var countryData = data.find(d => d.country === countryName);
+
+                            // Ensure the information panel is initialized before updating
+                            if (!document.getElementById('info-window')) {
+                                createInfoWindow();
+                            }
+
+                            // Ensure the information panel is visible before updating its content
+                            var infoWindow = document.getElementById('info-window');
+                            infoWindow.style.display = 'block';
+
+                            // Update the information panel with the selected country's data
+                            updateInfoWindow(countryName, countryData, data);
+
+                            // Highlight the selected country on the map
+                            selectedCountries.add(countryName); // Add the country to the selected set
+                            highlightSelectedCountry(countryName);
+                        });
+                    });
+                }
+
+                // Modify the close button handler to dehighlight the selected country
+                var closeButton = document.querySelector('#info-window button');
+                if (closeButton) {
+                    closeButton.onclick = function() {
+                        var infoWindow = document.getElementById('info-window');
+                        infoWindow.style.display = 'none';
+                        geojsonLayer.eachLayer(function(layer) {
+                            geojsonLayer.resetStyle(layer);
+                        });
+                        if (bivariateLayer) {
+                            bivariateLayer.eachLayer(function(layer) {
+                                bivariateLayer.resetStyle(layer);
+                            });
+                        }
+                        selectedCountries.clear(); // Clear the history of selected countries
+                    };
+                }
+
+                function highlightSelectedCountryBivariate(countryName) {
+                    if (bivariateLayer) {
+                        bivariateLayer.eachLayer(function(layer) {
+                            if (layer.feature.properties.WP_Name === countryName) {
+                                layer.setStyle({
+                                    weight: 2,
+                                    color: 'rgb(128, 0, 0)',
+                                    fillOpacity: 0.9
+                                });
+                                layer.bringToFront();
+                            } else {
+                                bivariateLayer.resetStyle(layer);
+                            }
+                        });
+                    }
+                }
+
+                // Modify the bivariate layer click handler to ensure the selected country remains highlighted
+                if (bivariateLayer) {
+                    bivariateLayer.eachLayer(function(layer) {
+                        layer.on('click', function(e) {
+                            var countryName = layer.feature.properties.WP_Name;
+                            var countryData = data.find(d => d.country === countryName);
+
+                            // Ensure the information panel is initialized before updating
+                            if (!document.getElementById('info-window')) {
+                                createInfoWindow();
+                            }
+
+                            // Ensure the information panel is visible before updating its content
+                            var infoWindow = document.getElementById('info-window');
+                            infoWindow.style.display = 'block';
+
+                            // Update the information panel with the selected country's data
+                            updateInfoWindow(countryName, countryData, data);
+
+                            // Highlight the selected country on the bivariate layer
+                            highlightSelectedCountryBivariate(countryName);
+                        });
+                    });
+                }
 
             }).catch(function(error) {
                 console.error("Error loading TopoJSON data:", error);
